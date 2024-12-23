@@ -71,6 +71,7 @@ type ExtraCalendarEntry struct {
 type Options struct {
 	IsEpiphanyOn6thJan        *bool
 	IsAscensionOfTheLordO40th *bool
+	AdditionalCalendar        func(year int, options *Options) ([][]CalendarEntryData, error)
 }
 
 var YearCycleMap = []string{"C", "A", "B"}
@@ -1006,6 +1007,7 @@ func GeneratePostPentecostSolemnity(year int) ([][]CalendarEntryData, error) {
 func GenerateCalendar(year int, options *Options) ([]CalendarEntryData, error) {
 	isEpiphanyOn6thJan := false
 	isAscensionOfTheLordOn40th := false
+	var additionalCalendar func(year int, options *Options) ([][]CalendarEntryData, error) = nil
 
 	if options != nil {
 		if options.IsEpiphanyOn6thJan != nil {
@@ -1015,6 +1017,11 @@ func GenerateCalendar(year int, options *Options) ([]CalendarEntryData, error) {
 		if options.IsAscensionOfTheLordO40th != nil {
 			isAscensionOfTheLordOn40th = *options.IsAscensionOfTheLordO40th
 		}
+
+		if options.AdditionalCalendar != nil {
+			additionalCalendar = options.AdditionalCalendar
+		}
+
 	}
 
 	var calendar [][]CalendarEntryData = make([][]CalendarEntryData, 0)
@@ -1067,6 +1074,15 @@ func GenerateCalendar(year int, options *Options) ([]CalendarEntryData, error) {
 	calendar = append(calendar, saintCelebration...)
 	calendar = append(calendar, annunciationOfTheLord...)
 	calendar = append(calendar, postPentecostSolemnity...)
+
+	if additionalCalendar != nil {
+		additional, err := additionalCalendar(year, options)
+		if err != nil {
+			return nil, err
+		}
+
+		calendar = append(calendar, additional...)
+	}
 
 	calendarFlat := lo.Flatten(calendar)
 
