@@ -42,13 +42,14 @@ type CalendarEntry struct {
 	WeekdayType   string      `json:"weekdayType"`
 	WeekOrder     string      `json:"weekOrder"`
 	PeriodOfDay   string      `json:"periodOfDay"`
+	Description   string      `json:"description"`
 	ExtraCalendarEntry
 }
 
 type CalendarEntryData struct {
 	CalendarEntry
-	Date    string `json:"date"`
 	Weekday string `json:"weekday"`
+	Date    string `json:"date"`
 }
 
 type ExtraCalendarEntry struct {
@@ -148,8 +149,8 @@ func GenerateAdvent(year int) ([][]CalendarEntryData, error) {
 				if d.WeekOrder == fmt.Sprint(weekOrder) && d.YearCycle == yearCycle {
 					return CalendarEntryData{
 						CalendarEntry: d,
-						Date:          day.Format("02/01/2006"),
 						Weekday:       strings.ToLower(day.Weekday().String()),
+						Date:          day.Format("02/01/2006"),
 					}, true
 				}
 
@@ -181,8 +182,8 @@ func GenerateAdvent(year int) ([][]CalendarEntryData, error) {
 		calendar = append(calendar, lo.Map(adventWeekday, func(d CalendarEntry, _ int) CalendarEntryData {
 			return CalendarEntryData{
 				CalendarEntry: d,
-				Date:          day.Format("02/01/2006"),
 				Weekday:       strings.ToLower(day.Weekday().String()),
+				Date:          day.Format("02/01/2006"),
 			}
 		}))
 	}
@@ -234,8 +235,8 @@ func GenerateChristmas(year int, isEpiphanyOn6thJan bool) ([][]CalendarEntryData
 		if d.WeekOrder == "nativityOfTheLord" {
 			return CalendarEntryData{
 				CalendarEntry: d,
-				Date:          christmasDay.Format("02/01/2006"),
 				Weekday:       strings.ToLower(christmasDay.Weekday().String()),
+				Date:          christmasDay.Format("02/01/2006"),
 			}, true
 		}
 
@@ -247,8 +248,8 @@ func GenerateChristmas(year int, isEpiphanyOn6thJan bool) ([][]CalendarEntryData
 			if d.WeekdayType == day.Format("02/01") && (d.WeekOrder == "preEpiphany" || d.WeekOrder == "christmas") {
 				return CalendarEntryData{
 					CalendarEntry: d,
-					Date:          day.Format("02/01/2006"),
 					Weekday:       strings.ToLower(day.Weekday().String()),
+					Date:          day.Format("02/01/2006"),
 				}, true
 			}
 
@@ -270,8 +271,8 @@ func GenerateChristmas(year int, isEpiphanyOn6thJan bool) ([][]CalendarEntryData
 
 			return CalendarEntryData{
 				CalendarEntry: d,
-				Date:          newDate.Format("02/01/2006"),
 				Weekday:       newWeekday,
+				Date:          newDate.Format("02/01/2006"),
 			}, true
 		}
 
@@ -286,8 +287,8 @@ func GenerateChristmas(year int, isEpiphanyOn6thJan bool) ([][]CalendarEntryData
 
 			return CalendarEntryData{
 				CalendarEntry: d,
-				Date:          newDate.Format("02/01/2006"),
 				Weekday:       newWeekday,
+				Date:          newDate.Format("02/01/2006"),
 			}, true
 		}
 
@@ -852,6 +853,49 @@ func GenerateEaster(year int, isAscensionOfTheLordOn40th bool) ([][]CalendarEntr
 	return calendar, nil
 }
 
+func GenerateCelebration(year int) ([][]CalendarEntryData, error) {
+	saintFileData, err := os.ReadFile(liturgicalDataPath + "/celebrations/1_saint.json")
+	if err != nil {
+		return nil, err
+	}
+
+	movableCelebrationFileData, err := os.ReadFile(liturgicalDataPath + "/celebrations/2_movable_celebrations.json")
+	if err != nil {
+		return nil, err
+	}
+
+	saintData := make([]CalendarEntry, 0)
+
+	err = json.Unmarshal(saintFileData, &saintData)
+	if err != nil {
+		return nil, err
+	}
+
+	movableCelebrationData := make([]CalendarEntry, 0)
+
+	err = json.Unmarshal(movableCelebrationFileData, &movableCelebrationData)
+	if err != nil {
+		return nil, err
+	}
+
+	var calendar [][]CalendarEntryData = make([][]CalendarEntryData, 0)
+
+	calendar = append(calendar, lo.FilterMap(append(saintData, movableCelebrationData...), func(d CalendarEntry, _ int) (CalendarEntryData, bool) {
+		parsedDate, err := time.Parse("02/01", d.WeekdayType)
+		if err != nil {
+			return CalendarEntryData{}, false
+		}
+
+		return CalendarEntryData{
+			CalendarEntry: d,
+			Weekday:       strings.ToLower(parsedDate.AddDate(year, 0, 0).Weekday().String()),
+			Date:          parsedDate.AddDate(year, 0, 0).Format("02/01/2006"),
+		}, true
+	}))
+
+	return calendar, nil
+}
+
 func GenerateCalendar(year int, options *Options) ([]CalendarEntryData, error) {
 	isEpiphanyOn6thJan := false
 	isAscensionOfTheLordOn40th := false
@@ -893,11 +937,17 @@ func GenerateCalendar(year int, options *Options) ([]CalendarEntryData, error) {
 		return nil, err
 	}
 
+	saintCelebration, err := GenerateCelebration(year)
+	if err != nil {
+		return nil, err
+	}
+
 	calendar = append(calendar, advent...)
 	calendar = append(calendar, christmas...)
 	calendar = append(calendar, ot...)
 	calendar = append(calendar, lent...)
 	calendar = append(calendar, easter...)
+	calendar = append(calendar, saintCelebration...)
 
 	calendarFlat := lo.Flatten(calendar)
 
