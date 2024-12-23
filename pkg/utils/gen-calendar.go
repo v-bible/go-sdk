@@ -896,6 +896,47 @@ func GenerateCelebration(year int) ([][]CalendarEntryData, error) {
 	return calendar, nil
 }
 
+func GenerateAnnunciationOfTheLord(year int) ([][]CalendarEntryData, error) {
+	movableCelebrationFileData, err := os.ReadFile(liturgicalDataPath + "/celebrations/2_movable_celebrations.json")
+	if err != nil {
+		return nil, err
+	}
+
+	movableCelebrationData := make([]CalendarEntry, 0)
+
+	err = json.Unmarshal(movableCelebrationFileData, &movableCelebrationData)
+	if err != nil {
+		return nil, err
+	}
+
+	easterDay := EasterDate(year)
+	ashWednesday := easterDay.AddDate(0, 0, -(7*6)-4)
+
+	annunciationOfTheLord := time.Date(year, time.March, 25, 0, 0, 0, 0, time.UTC)
+
+	var calendar [][]CalendarEntryData = make([][]CalendarEntryData, 0)
+
+	if annunciationOfTheLord.Weekday() == time.Sunday && annunciationOfTheLord.After(ashWednesday.AddDate(0, 0, -1)) && annunciationOfTheLord.Before(easterDay.AddDate(0, 0, -14+1)) {
+		annunciationOfTheLord = time.Date(year, time.March, 26, 0, 0, 0, 0, time.UTC)
+	} else if annunciationOfTheLord.After(previousWeekday(easterDay, time.Sunday).AddDate(0, 0, -1)) && annunciationOfTheLord.Before(nextWeekday(easterDay, time.Sunday).AddDate(0, 0, 1)) {
+		annunciationOfTheLord = nextWeekday(nextWeekday(easterDay, time.Sunday), time.Monday)
+	}
+
+	calendar = append(calendar, lo.FilterMap(movableCelebrationData, func(d CalendarEntry, _ int) (CalendarEntryData, bool) {
+		if d.WeekdayType == "annunciationOfTheLord" {
+			return CalendarEntryData{
+				CalendarEntry: d,
+				Weekday:       strings.ToLower(annunciationOfTheLord.Weekday().String()),
+				Date:          annunciationOfTheLord.Format("02/01/2006"),
+			}, true
+		}
+
+		return CalendarEntryData{}, false
+	}))
+
+	return calendar, nil
+}
+
 func GenerateCalendar(year int, options *Options) ([]CalendarEntryData, error) {
 	isEpiphanyOn6thJan := false
 	isAscensionOfTheLordOn40th := false
@@ -942,12 +983,18 @@ func GenerateCalendar(year int, options *Options) ([]CalendarEntryData, error) {
 		return nil, err
 	}
 
+	annunciationOfTheLord, err := GenerateAnnunciationOfTheLord(year)
+	if err != nil {
+		return nil, err
+	}
+
 	calendar = append(calendar, advent...)
 	calendar = append(calendar, christmas...)
 	calendar = append(calendar, ot...)
 	calendar = append(calendar, lent...)
 	calendar = append(calendar, easter...)
 	calendar = append(calendar, saintCelebration...)
+	calendar = append(calendar, annunciationOfTheLord...)
 
 	calendarFlat := lo.Flatten(calendar)
 
