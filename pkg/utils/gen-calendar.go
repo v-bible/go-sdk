@@ -42,13 +42,14 @@ type CalendarEntry struct {
 	WeekdayType   string      `json:"weekdayType"`
 	WeekOrder     string      `json:"weekOrder"`
 	PeriodOfDay   string      `json:"periodOfDay"`
+	Description   string      `json:"description"`
 	ExtraCalendarEntry
 }
 
 type CalendarEntryData struct {
 	CalendarEntry
-	Date    string `json:"date"`
 	Weekday string `json:"weekday"`
+	Date    string `json:"date"`
 }
 
 type ExtraCalendarEntry struct {
@@ -70,6 +71,7 @@ type ExtraCalendarEntry struct {
 type Options struct {
 	IsEpiphanyOn6thJan        *bool
 	IsAscensionOfTheLordO40th *bool
+	AdditionalCalendar        func(year int, options *Options) ([][]CalendarEntryData, error)
 }
 
 var YearCycleMap = []string{"C", "A", "B"}
@@ -148,8 +150,8 @@ func GenerateAdvent(year int) ([][]CalendarEntryData, error) {
 				if d.WeekOrder == fmt.Sprint(weekOrder) && d.YearCycle == yearCycle {
 					return CalendarEntryData{
 						CalendarEntry: d,
-						Date:          day.Format("02/01/2006"),
 						Weekday:       strings.ToLower(day.Weekday().String()),
+						Date:          day.Format("02/01/2006"),
 					}, true
 				}
 
@@ -181,8 +183,8 @@ func GenerateAdvent(year int) ([][]CalendarEntryData, error) {
 		calendar = append(calendar, lo.Map(adventWeekday, func(d CalendarEntry, _ int) CalendarEntryData {
 			return CalendarEntryData{
 				CalendarEntry: d,
-				Date:          day.Format("02/01/2006"),
 				Weekday:       strings.ToLower(day.Weekday().String()),
+				Date:          day.Format("02/01/2006"),
 			}
 		}))
 	}
@@ -234,8 +236,8 @@ func GenerateChristmas(year int, isEpiphanyOn6thJan bool) ([][]CalendarEntryData
 		if d.WeekOrder == "nativityOfTheLord" {
 			return CalendarEntryData{
 				CalendarEntry: d,
-				Date:          christmasDay.Format("02/01/2006"),
 				Weekday:       strings.ToLower(christmasDay.Weekday().String()),
+				Date:          christmasDay.Format("02/01/2006"),
 			}, true
 		}
 
@@ -247,8 +249,8 @@ func GenerateChristmas(year int, isEpiphanyOn6thJan bool) ([][]CalendarEntryData
 			if d.WeekdayType == day.Format("02/01") && (d.WeekOrder == "preEpiphany" || d.WeekOrder == "christmas") {
 				return CalendarEntryData{
 					CalendarEntry: d,
-					Date:          day.Format("02/01/2006"),
 					Weekday:       strings.ToLower(day.Weekday().String()),
+					Date:          day.Format("02/01/2006"),
 				}, true
 			}
 
@@ -270,8 +272,8 @@ func GenerateChristmas(year int, isEpiphanyOn6thJan bool) ([][]CalendarEntryData
 
 			return CalendarEntryData{
 				CalendarEntry: d,
-				Date:          newDate.Format("02/01/2006"),
 				Weekday:       newWeekday,
+				Date:          newDate.Format("02/01/2006"),
 			}, true
 		}
 
@@ -286,8 +288,8 @@ func GenerateChristmas(year int, isEpiphanyOn6thJan bool) ([][]CalendarEntryData
 
 			return CalendarEntryData{
 				CalendarEntry: d,
-				Date:          newDate.Format("02/01/2006"),
 				Weekday:       newWeekday,
+				Date:          newDate.Format("02/01/2006"),
 			}, true
 		}
 
@@ -852,9 +854,160 @@ func GenerateEaster(year int, isAscensionOfTheLordOn40th bool) ([][]CalendarEntr
 	return calendar, nil
 }
 
+func GenerateCelebration(year int) ([][]CalendarEntryData, error) {
+	saintFileData, err := os.ReadFile(liturgicalDataPath + "/celebrations/1_saint.json")
+	if err != nil {
+		return nil, err
+	}
+
+	movableCelebrationFileData, err := os.ReadFile(liturgicalDataPath + "/celebrations/2_movable_celebrations.json")
+	if err != nil {
+		return nil, err
+	}
+
+	saintData := make([]CalendarEntry, 0)
+
+	err = json.Unmarshal(saintFileData, &saintData)
+	if err != nil {
+		return nil, err
+	}
+
+	movableCelebrationData := make([]CalendarEntry, 0)
+
+	err = json.Unmarshal(movableCelebrationFileData, &movableCelebrationData)
+	if err != nil {
+		return nil, err
+	}
+
+	var calendar [][]CalendarEntryData = make([][]CalendarEntryData, 0)
+
+	calendar = append(calendar, lo.FilterMap(append(saintData, movableCelebrationData...), func(d CalendarEntry, _ int) (CalendarEntryData, bool) {
+		parsedDate, err := time.Parse("02/01", d.WeekdayType)
+		if err != nil {
+			return CalendarEntryData{}, false
+		}
+
+		return CalendarEntryData{
+			CalendarEntry: d,
+			Weekday:       strings.ToLower(parsedDate.AddDate(year, 0, 0).Weekday().String()),
+			Date:          parsedDate.AddDate(year, 0, 0).Format("02/01/2006"),
+		}, true
+	}))
+
+	return calendar, nil
+}
+
+func GenerateAnnunciationOfTheLord(year int) ([][]CalendarEntryData, error) {
+	movableCelebrationFileData, err := os.ReadFile(liturgicalDataPath + "/celebrations/2_movable_celebrations.json")
+	if err != nil {
+		return nil, err
+	}
+
+	movableCelebrationData := make([]CalendarEntry, 0)
+
+	err = json.Unmarshal(movableCelebrationFileData, &movableCelebrationData)
+	if err != nil {
+		return nil, err
+	}
+
+	easterDay := EasterDate(year)
+	ashWednesday := easterDay.AddDate(0, 0, -(7*6)-4)
+
+	annunciationOfTheLord := time.Date(year, time.March, 25, 0, 0, 0, 0, time.UTC)
+
+	var calendar [][]CalendarEntryData = make([][]CalendarEntryData, 0)
+
+	if annunciationOfTheLord.Weekday() == time.Sunday && annunciationOfTheLord.After(ashWednesday.AddDate(0, 0, -1)) && annunciationOfTheLord.Before(easterDay.AddDate(0, 0, -14+1)) {
+		annunciationOfTheLord = time.Date(year, time.March, 26, 0, 0, 0, 0, time.UTC)
+	} else if annunciationOfTheLord.After(previousWeekday(easterDay, time.Sunday).AddDate(0, 0, -1)) && annunciationOfTheLord.Before(nextWeekday(easterDay, time.Sunday).AddDate(0, 0, 1)) {
+		annunciationOfTheLord = nextWeekday(nextWeekday(easterDay, time.Sunday), time.Monday)
+	}
+
+	calendar = append(calendar, lo.FilterMap(movableCelebrationData, func(d CalendarEntry, _ int) (CalendarEntryData, bool) {
+		if d.WeekdayType == "annunciationOfTheLord" {
+			return CalendarEntryData{
+				CalendarEntry: d,
+				Weekday:       strings.ToLower(annunciationOfTheLord.Weekday().String()),
+				Date:          annunciationOfTheLord.Format("02/01/2006"),
+			}, true
+		}
+
+		return CalendarEntryData{}, false
+	}))
+
+	return calendar, nil
+}
+
+func GeneratePostPentecostSolemnity(year int) ([][]CalendarEntryData, error) {
+	movableCelebrationFileData, err := os.ReadFile(liturgicalDataPath + "/celebrations/2_movable_celebrations.json")
+	if err != nil {
+		return nil, err
+	}
+
+	movableCelebrationData := make([]CalendarEntry, 0)
+
+	err = json.Unmarshal(movableCelebrationFileData, &movableCelebrationData)
+	if err != nil {
+		return nil, err
+	}
+
+	yearCycle := YearCycleMap[year%3]
+
+	easterDay := EasterDate(year)
+
+	pentecost := easterDay.AddDate(0, 0, 49)
+
+	var calendar [][]CalendarEntryData = make([][]CalendarEntryData, 0)
+
+	trinitySunday := nextWeekday(pentecost, time.Sunday)
+
+	calendar = append(calendar, lo.FilterMap(movableCelebrationData, func(d CalendarEntry, _ int) (CalendarEntryData, bool) {
+		if d.WeekdayType == "trinitySunday" && d.YearCycle == yearCycle {
+			return CalendarEntryData{
+				CalendarEntry: d,
+				Weekday:       strings.ToLower(trinitySunday.Weekday().String()),
+				Date:          trinitySunday.Format("02/01/2006"),
+			}, true
+		}
+
+		return CalendarEntryData{}, false
+	}))
+
+	bodyAndBloodOfChrist := nextWeekday(trinitySunday, time.Sunday)
+
+	calendar = append(calendar, lo.FilterMap(movableCelebrationData, func(d CalendarEntry, _ int) (CalendarEntryData, bool) {
+		if d.WeekdayType == "bodyAndBloodOfChrist" && d.YearCycle == yearCycle {
+			return CalendarEntryData{
+				CalendarEntry: d,
+				Weekday:       strings.ToLower(bodyAndBloodOfChrist.Weekday().String()),
+				Date:          bodyAndBloodOfChrist.Format("02/01/2006"),
+			}, true
+		}
+
+		return CalendarEntryData{}, false
+	}))
+
+	sacredHeart := nextWeekday(bodyAndBloodOfChrist, time.Friday)
+
+	calendar = append(calendar, lo.FilterMap(movableCelebrationData, func(d CalendarEntry, _ int) (CalendarEntryData, bool) {
+		if d.WeekdayType == "sacredHeart" && d.YearCycle == yearCycle {
+			return CalendarEntryData{
+				CalendarEntry: d,
+				Weekday:       strings.ToLower(sacredHeart.Weekday().String()),
+				Date:          sacredHeart.Format("02/01/2006"),
+			}, true
+		}
+
+		return CalendarEntryData{}, false
+	}))
+
+	return calendar, nil
+}
+
 func GenerateCalendar(year int, options *Options) ([]CalendarEntryData, error) {
 	isEpiphanyOn6thJan := false
 	isAscensionOfTheLordOn40th := false
+	var additionalCalendar func(year int, options *Options) ([][]CalendarEntryData, error) = nil
 
 	if options != nil {
 		if options.IsEpiphanyOn6thJan != nil {
@@ -864,6 +1017,11 @@ func GenerateCalendar(year int, options *Options) ([]CalendarEntryData, error) {
 		if options.IsAscensionOfTheLordO40th != nil {
 			isAscensionOfTheLordOn40th = *options.IsAscensionOfTheLordO40th
 		}
+
+		if options.AdditionalCalendar != nil {
+			additionalCalendar = options.AdditionalCalendar
+		}
+
 	}
 
 	var calendar [][]CalendarEntryData = make([][]CalendarEntryData, 0)
@@ -893,11 +1051,38 @@ func GenerateCalendar(year int, options *Options) ([]CalendarEntryData, error) {
 		return nil, err
 	}
 
+	saintCelebration, err := GenerateCelebration(year)
+	if err != nil {
+		return nil, err
+	}
+
+	annunciationOfTheLord, err := GenerateAnnunciationOfTheLord(year)
+	if err != nil {
+		return nil, err
+	}
+
+	postPentecostSolemnity, err := GeneratePostPentecostSolemnity(year)
+	if err != nil {
+		return nil, err
+	}
+
 	calendar = append(calendar, advent...)
 	calendar = append(calendar, christmas...)
 	calendar = append(calendar, ot...)
 	calendar = append(calendar, lent...)
 	calendar = append(calendar, easter...)
+	calendar = append(calendar, saintCelebration...)
+	calendar = append(calendar, annunciationOfTheLord...)
+	calendar = append(calendar, postPentecostSolemnity...)
+
+	if additionalCalendar != nil {
+		additional, err := additionalCalendar(year, options)
+		if err != nil {
+			return nil, err
+		}
+
+		calendar = append(calendar, additional...)
+	}
 
 	calendarFlat := lo.Flatten(calendar)
 
