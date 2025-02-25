@@ -6,88 +6,88 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
-	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/exp/utf8string"
 )
 
 type Book struct {
-	Id        string           `json:"id"`
-	Code      string           `json:"code"`
-	Title     string           `json:"title"`
-	Canon     string           `json:"canon"`
-	Order     int              `json:"order"`
-	CreatedAt pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
-	Chapters  []*BookChapter   `json:"chapters"`
-	VersionId string           `json:"versionId"`
+	Id        string         `json:"id"`
+	Code      string         `json:"code"`
+	Title     string         `json:"title"`
+	Canon     string         `json:"canon"`
+	Order     int            `json:"order"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	Chapters  []*BookChapter `json:"chapters"`
+	VersionId string         `json:"versionId"`
 }
 
 type BookChapter struct {
-	Id        string           `json:"id"`
-	Number    int              `json:"number"`
-	Ref       string           `json:"ref"`
-	CreatedAt pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
-	BookId    string           `json:"bookId"`
+	Id        string    `json:"id"`
+	Number    int       `json:"number"`
+	Ref       string    `json:"ref"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	BookId    string    `json:"bookId"`
 }
 
 type BookVerse struct {
-	Id        string           `json:"id"`
-	Number    int              `json:"number"`
-	Content   string           `json:"content"`
-	Order     int              `json:"order"`
-	ParNumber int              `json:"parNumber"`
-	ParIndex  int              `json:"parIndex"`
-	IsPoetry  bool             `json:"isPoetry"`
-	CreatedAt pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
-	ChapterId string           `json:"chapterId"`
+	Id        string    `json:"id"`
+	Number    int       `json:"number"`
+	Content   string    `json:"content"`
+	Order     int       `json:"order"`
+	ParNumber int       `json:"parNumber"`
+	ParIndex  int       `json:"parIndex"`
+	IsPoetry  bool      `json:"isPoetry"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	ChapterId string    `json:"chapterId"`
 }
 
 type BookFootnote struct {
-	Id        string           `json:"id"`
-	Content   string           `json:"content"`
-	Position  int              `json:"position"`
-	Order     int              `json:"order"`
-	CreatedAt pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
-	VerseId   *string          `json:"verseId"`
-	HeadingId *string          `json:"headingId"`
-	ChapterId string           `json:"chapterId"`
+	Id        string    `json:"id"`
+	Content   string    `json:"content"`
+	Position  int       `json:"position"`
+	Order     int       `json:"order"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	VerseId   *string   `json:"verseId"`
+	HeadingId *string   `json:"headingId"`
+	ChapterId string    `json:"chapterId"`
 }
 
 type BookHeading struct {
-	Id        string           `json:"id"`
-	Content   string           `json:"content"`
-	Order     int              `json:"order"`
-	CreatedAt pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
-	VerseId   string           `json:"verseId"`
-	ChapterId string           `json:"chapterId"`
+	Id        string    `json:"id"`
+	Content   string    `json:"content"`
+	Order     int       `json:"order"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	VerseId   string    `json:"verseId"`
+	ChapterId string    `json:"chapterId"`
 }
 
 type BookReference struct {
-	Id        string           `json:"id"`
-	Content   string           `json:"content"`
-	Position  *int             `json:"position"`
-	Order     int              `json:"order"`
-	CreatedAt pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
-	VerseId   *string          `json:"verseId"`
-	HeadingId *string          `json:"headingId"`
-	ChapterId string           `json:"chapterId"`
+	Id        string    `json:"id"`
+	Content   string    `json:"content"`
+	Position  *int      `json:"position"`
+	Order     int       `json:"order"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	VerseId   *string   `json:"verseId"`
+	HeadingId *string   `json:"headingId"`
+	ChapterId string    `json:"chapterId"`
 }
 
 type PsalmMetadata struct {
-	Id        string           `json:"id"`
-	Title     string           `json:"title"`
-	CreatedAt pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
-	ChapterId string           `json:"chapterId"`
+	Id        string    `json:"id"`
+	Title     string    `json:"title"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	ChapterId string    `json:"chapterId"`
 }
 
 type GetAllBookParams struct {
