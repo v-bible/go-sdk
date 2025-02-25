@@ -1,10 +1,12 @@
 package utils
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
-	"os"
+	"net/http"
 	"slices"
 	"strings"
 	"time"
@@ -12,7 +14,7 @@ import (
 	"github.com/samber/lo"
 )
 
-var liturgicalDataPath = "./static/liturgical"
+var liturgicalDataPath = "https://raw.githubusercontent.com/v-bible/static/refs/heads/main/liturgical"
 
 //nolint:gomnd
 func EasterDate(y int) time.Time {
@@ -96,27 +98,43 @@ func previousWeekday(time time.Time, weekday time.Weekday) time.Time {
 	return time
 }
 
+func getLiturgical(url string) ([]CalendarEntry, error) {
+	ctx := context.Background()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Body.Close()
+
+	fileData, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var data []CalendarEntry
+
+	err = json.Unmarshal(fileData, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
 func GenerateAdvent(year int) ([][]CalendarEntryData, error) {
-	adventSundayFileData, err := os.ReadFile(liturgicalDataPath + "/sunday/1_advent.json")
+	adventSundayData, err := getLiturgical(liturgicalDataPath + "/sunday/1_advent.json")
 	if err != nil {
 		return nil, err
 	}
 
-	adventWeekdayFileData, err := os.ReadFile(liturgicalDataPath + "/weekdays/1_advent.json")
-	if err != nil {
-		return nil, err
-	}
-
-	adventSundayData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(adventSundayFileData, &adventSundayData)
-	if err != nil {
-		return nil, err
-	}
-
-	adventWeekdayData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(adventWeekdayFileData, &adventWeekdayData)
+	adventWeekdayData, err := getLiturgical(liturgicalDataPath + "/weekdays/1_advent.json")
 	if err != nil {
 		return nil, err
 	}
@@ -193,26 +211,12 @@ func GenerateAdvent(year int) ([][]CalendarEntryData, error) {
 }
 
 func GenerateChristmas(year int, isEpiphanyOn6thJan bool) ([][]CalendarEntryData, error) {
-	christmasSundayFileData, err := os.ReadFile(liturgicalDataPath + "/sunday/2_christmas.json")
+	christmasSundayData, err := getLiturgical(liturgicalDataPath + "/sunday/2_christmas.json")
 	if err != nil {
 		return nil, err
 	}
 
-	christmasWeekdayFileData, err := os.ReadFile(liturgicalDataPath + "/weekdays/2_christmas.json")
-	if err != nil {
-		return nil, err
-	}
-
-	christmasSundayData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(christmasSundayFileData, &christmasSundayData)
-	if err != nil {
-		return nil, err
-	}
-
-	christmasWeekdayData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(christmasWeekdayFileData, &christmasWeekdayData)
+	christmasWeekdayData, err := getLiturgical(liturgicalDataPath + "/weekdays/2_christmas.json")
 	if err != nil {
 		return nil, err
 	}
@@ -389,26 +393,12 @@ func GenerateChristmas(year int, isEpiphanyOn6thJan bool) ([][]CalendarEntryData
 }
 
 func GenerateOT(year int, isEpiphanyOn6thJan bool) ([][]CalendarEntryData, error) {
-	otSundayFileData, err := os.ReadFile(liturgicalDataPath + "/sunday/5_ot.json")
+	otSundayData, err := getLiturgical(liturgicalDataPath + "/sunday/5_ot.json")
 	if err != nil {
 		return nil, err
 	}
 
-	otWeekdayFileData, err := os.ReadFile(liturgicalDataPath + "/weekdays/5_ot.json")
-	if err != nil {
-		return nil, err
-	}
-
-	otSundayData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(otSundayFileData, &otSundayData)
-	if err != nil {
-		return nil, err
-	}
-
-	otWeekdayData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(otWeekdayFileData, &otWeekdayData)
+	otWeekdayData, err := getLiturgical(liturgicalDataPath + "/weekdays/5_ot.json")
 	if err != nil {
 		return nil, err
 	}
@@ -550,26 +540,12 @@ func GenerateOT(year int, isEpiphanyOn6thJan bool) ([][]CalendarEntryData, error
 }
 
 func GenerateLent(year int) ([][]CalendarEntryData, error) {
-	lentSundayFileData, err := os.ReadFile(liturgicalDataPath + "/sunday/3_lent.json")
+	lentSundayData, err := getLiturgical(liturgicalDataPath + "/sunday/3_lent.json")
 	if err != nil {
 		return nil, err
 	}
 
-	lentWeekdayFileData, err := os.ReadFile(liturgicalDataPath + "/weekdays/3_lent.json")
-	if err != nil {
-		return nil, err
-	}
-
-	lentSundayData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(lentSundayFileData, &lentSundayData)
-	if err != nil {
-		return nil, err
-	}
-
-	lentWeekdayData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(lentWeekdayFileData, &lentWeekdayData)
+	lentWeekdayData, err := getLiturgical(liturgicalDataPath + "/weekdays/3_lent.json")
 	if err != nil {
 		return nil, err
 	}
@@ -690,26 +666,12 @@ func GenerateLent(year int) ([][]CalendarEntryData, error) {
 }
 
 func GenerateEaster(year int, isAscensionOfTheLordOn40th bool) ([][]CalendarEntryData, error) {
-	triduumSundayFileData, err := os.ReadFile(liturgicalDataPath + "/sunday/4_triduum.json")
+	triduumSundayData, err := getLiturgical(liturgicalDataPath + "/sunday/4_triduum.json")
 	if err != nil {
 		return nil, err
 	}
 
-	easterWeekdayFileData, err := os.ReadFile(liturgicalDataPath + "/weekdays/4_easter.json")
-	if err != nil {
-		return nil, err
-	}
-
-	triduumSundayData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(triduumSundayFileData, &triduumSundayData)
-	if err != nil {
-		return nil, err
-	}
-
-	easterWeekdayData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(easterWeekdayFileData, &easterWeekdayData)
+	easterWeekdayData, err := getLiturgical(liturgicalDataPath + "/weekdays/4_easter.json")
 	if err != nil {
 		return nil, err
 	}
@@ -855,26 +817,12 @@ func GenerateEaster(year int, isAscensionOfTheLordOn40th bool) ([][]CalendarEntr
 }
 
 func GenerateCelebration(year int) ([][]CalendarEntryData, error) {
-	saintFileData, err := os.ReadFile(liturgicalDataPath + "/celebrations/1_saint.json")
+	saintData, err := getLiturgical(liturgicalDataPath + "/celebrations/1_saint.json")
 	if err != nil {
 		return nil, err
 	}
 
-	movableCelebrationFileData, err := os.ReadFile(liturgicalDataPath + "/celebrations/2_movable_celebrations.json")
-	if err != nil {
-		return nil, err
-	}
-
-	saintData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(saintFileData, &saintData)
-	if err != nil {
-		return nil, err
-	}
-
-	movableCelebrationData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(movableCelebrationFileData, &movableCelebrationData)
+	movableCelebrationData, err := getLiturgical(liturgicalDataPath + "/celebrations/2_movable_celebrations.json")
 	if err != nil {
 		return nil, err
 	}
@@ -898,14 +846,7 @@ func GenerateCelebration(year int) ([][]CalendarEntryData, error) {
 }
 
 func GenerateAnnunciationOfTheLord(year int) ([][]CalendarEntryData, error) {
-	movableCelebrationFileData, err := os.ReadFile(liturgicalDataPath + "/celebrations/2_movable_celebrations.json")
-	if err != nil {
-		return nil, err
-	}
-
-	movableCelebrationData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(movableCelebrationFileData, &movableCelebrationData)
+	movableCelebrationData, err := getLiturgical(liturgicalDataPath + "/celebrations/2_movable_celebrations.json")
 	if err != nil {
 		return nil, err
 	}
@@ -939,14 +880,7 @@ func GenerateAnnunciationOfTheLord(year int) ([][]CalendarEntryData, error) {
 }
 
 func GeneratePostPentecostSolemnity(year int) ([][]CalendarEntryData, error) {
-	movableCelebrationFileData, err := os.ReadFile(liturgicalDataPath + "/celebrations/2_movable_celebrations.json")
-	if err != nil {
-		return nil, err
-	}
-
-	movableCelebrationData := make([]CalendarEntry, 0)
-
-	err = json.Unmarshal(movableCelebrationFileData, &movableCelebrationData)
+	movableCelebrationData, err := getLiturgical(liturgicalDataPath + "/celebrations/2_movable_celebrations.json")
 	if err != nil {
 		return nil, err
 	}
@@ -1007,6 +941,7 @@ func GeneratePostPentecostSolemnity(year int) ([][]CalendarEntryData, error) {
 func GenerateCalendar(year int, options *Options) ([]CalendarEntryData, error) {
 	isEpiphanyOn6thJan := false
 	isAscensionOfTheLordOn40th := false
+
 	var additionalCalendar func(year int, options *Options) ([][]CalendarEntryData, error) = nil
 
 	if options != nil {
@@ -1021,7 +956,6 @@ func GenerateCalendar(year int, options *Options) ([]CalendarEntryData, error) {
 		if options.AdditionalCalendar != nil {
 			additionalCalendar = options.AdditionalCalendar
 		}
-
 	}
 
 	var calendar [][]CalendarEntryData = make([][]CalendarEntryData, 0)
