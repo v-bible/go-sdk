@@ -1,0 +1,24 @@
+name: release-please
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  npm_publish:
+    runs-on: "ubuntu-latest"
+
+    # NOTE: We have to give write contents and pull requests permissions to the
+    # token
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      # NOTE: You have to turn on "Allow Github Actions to create and approve
+      # pull requests" in the org settings
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release-type: go
