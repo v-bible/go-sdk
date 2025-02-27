@@ -6,112 +6,15 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
+	biblev1 "github.com/v-bible/protobuf/pkg/proto/bible/v1"
 	"golang.org/x/exp/utf8string"
 )
 
-type Book struct {
-	Id        string         `json:"id"`
-	Code      string         `json:"code"`
-	Title     string         `json:"title"`
-	Canon     string         `json:"canon"`
-	Order     int            `json:"order"`
-	CreatedAt time.Time      `json:"createdAt"`
-	UpdatedAt time.Time      `json:"updatedAt"`
-	Chapters  []*BookChapter `json:"chapters"`
-	VersionId string         `json:"versionId"`
-}
-
-type BookChapter struct {
-	Id        string    `json:"id"`
-	Number    int       `json:"number"`
-	Ref       string    `json:"ref"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	BookId    string    `json:"bookId"`
-}
-
-type BookVerse struct {
-	Id        string    `json:"id"`
-	Number    int       `json:"number"`
-	Content   string    `json:"content"`
-	Order     int       `json:"order"`
-	ParNumber int       `json:"parNumber"`
-	ParIndex  int       `json:"parIndex"`
-	IsPoetry  bool      `json:"isPoetry"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	ChapterId string    `json:"chapterId"`
-}
-
-type BookFootnote struct {
-	Id        string    `json:"id"`
-	Content   string    `json:"content"`
-	Position  int       `json:"position"`
-	Order     int       `json:"order"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	VerseId   *string   `json:"verseId"`
-	HeadingId *string   `json:"headingId"`
-	ChapterId string    `json:"chapterId"`
-}
-
-type BookHeading struct {
-	Id        string    `json:"id"`
-	Content   string    `json:"content"`
-	Order     int       `json:"order"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	VerseId   string    `json:"verseId"`
-	ChapterId string    `json:"chapterId"`
-}
-
-type BookReference struct {
-	Id        string    `json:"id"`
-	Content   string    `json:"content"`
-	Position  *int      `json:"position"`
-	Order     int       `json:"order"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	VerseId   *string   `json:"verseId"`
-	HeadingId *string   `json:"headingId"`
-	ChapterId string    `json:"chapterId"`
-}
-
-type PsalmMetadata struct {
-	Id        string    `json:"id"`
-	Title     string    `json:"title"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	ChapterId string    `json:"chapterId"`
-}
-
-type GetAllBookParams struct {
-	VersionCode *string `json:"versionCode"`
-	LangCode    *string `json:"langCode"`
-	WebOrigin   *string `json:"webOrigin"`
-}
-
-type GetOneBookParams struct {
-	BookCode    string  `json:"bookCode"`
-	VersionCode *string `json:"versionCode"`
-	LangCode    *string `json:"langCode"`
-	WebOrigin   *string `json:"webOrigin"`
-}
-
-type GetOneChapterParams struct {
-	BookCode    string  `json:"bookCode"`
-	ChapterNum  string  `json:"chapterNum"`
-	VersionCode *string `json:"versionCode"`
-	LangCode    *string `json:"langCode"`
-	WebOrigin   *string `json:"webOrigin"`
-}
-
-func FilterByVerse[T BookFootnote | BookHeading | BookReference](verseId string, items []*T) []*T {
+func FilterByVerse[T biblev1.BookFootnote | biblev1.BookHeading | biblev1.BookReference](verseId string, items []*T) []*T {
 	var itemList []*T
 	itemList = append(itemList, items...)
 
@@ -119,15 +22,15 @@ func FilterByVerse[T BookFootnote | BookHeading | BookReference](verseId string,
 		var check bool
 
 		switch i := any(item).(type) {
-		case *BookFootnote:
+		case *biblev1.BookFootnote:
 			if i.VerseId == nil {
 				return true
 			}
 
 			check = *i.VerseId != verseId
-		case *BookHeading:
+		case *biblev1.BookHeading:
 			check = i.VerseId != verseId
-		case *BookReference:
+		case *biblev1.BookReference:
 			if i.VerseId == nil {
 				return true
 			}
@@ -141,7 +44,7 @@ func FilterByVerse[T BookFootnote | BookHeading | BookReference](verseId string,
 	return itemList
 }
 
-func FilterByHeading[T BookFootnote | BookReference](headingId string, items []*T) []*T {
+func FilterByHeading[T biblev1.BookFootnote | biblev1.BookReference](headingId string, items []*T) []*T {
 	var itemList []*T
 	itemList = append(itemList, items...)
 
@@ -149,13 +52,13 @@ func FilterByHeading[T BookFootnote | BookReference](headingId string, items []*
 		var check bool
 
 		switch i := any(item).(type) {
-		case *BookFootnote:
+		case *biblev1.BookFootnote:
 			if i.HeadingId == nil {
 				return true
 			}
 
 			check = *i.HeadingId != headingId
-		case *BookReference:
+		case *biblev1.BookReference:
 			if i.HeadingId == nil {
 				return true
 			}
@@ -171,12 +74,12 @@ func FilterByHeading[T BookFootnote | BookReference](headingId string, items []*
 
 type MapNote struct {
 	ChapterId string
-	Position  int
-	Order     int
+	Position  int32
+	Order     int32
 	Type      string
 }
 
-func processFootnoteAndRef(str string, footnotes []*BookFootnote, refs []*BookReference, fnLabel func(order int, chapterId string) string, refLabel func(order int, chapterId string) string) string {
+func processFootnoteAndRef(str string, footnotes []*biblev1.BookFootnote, refs []*biblev1.BookReference, fnLabel func(order int32, chapterId string) string, refLabel func(order int32, chapterId string) string) string {
 	mappedNote := make([]*MapNote, 0)
 
 	for _, footnote := range footnotes {
@@ -215,33 +118,33 @@ func processFootnoteAndRef(str string, footnotes []*BookFootnote, refs []*BookRe
 			newRefLabel = refLabel(note.Order+1, note.ChapterId)
 		}
 
-		if note.Position > newString.RuneCount() {
+		if int(note.Position) > newString.RuneCount() {
 			str = newString.String() + newRefLabel
 		} else {
-			str = newString.Slice(0, note.Position) + newRefLabel + newString.Slice(note.Position, newString.RuneCount())
+			str = newString.Slice(0, int(note.Position)) + newRefLabel + newString.Slice(int(note.Position), newString.RuneCount())
 		}
 	}
 
 	return str
 }
 
-var fnMdLabel = func(order int, chapterId string) string {
+var fnMdLabel = func(order int32, chapterId string) string {
 	return fmt.Sprintf("[^%d-%s]", order, chapterId)
 }
 
-var refMdLabel = func(order int, chapterId string) string {
+var refMdLabel = func(order int32, chapterId string) string {
 	return fmt.Sprintf("[^%d@-%s]", order, chapterId)
 }
 
-var fnHtmlLabel = func(order int, chapterId string) string {
+var fnHtmlLabel = func(order int32, chapterId string) string {
 	return fmt.Sprintf(`<sup><a href="#fn-%d-%s" id="fnref-%d-%s">%d</a></sup>`, order, chapterId, order, chapterId, order)
 }
 
-var refHtmlLabel = func(order int, chapterId string) string {
+var refHtmlLabel = func(order int32, chapterId string) string {
 	return fmt.Sprintf(`<sup><a href="#fn-%d@-%s" id="fnref-%d@-%s">%d@</a></sup>`, order, chapterId, order, chapterId, order)
 }
 
-func ProcessVerseMd(verses []*BookVerse, footnotes []*BookFootnote, headings []*BookHeading, refs []*BookReference, psalms []*PsalmMetadata) (string, error) {
+func ProcessVerseMd(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFootnote, headings []*biblev1.BookHeading, refs []*biblev1.BookReference, psalms []*biblev1.PsalmMetadata) (string, error) {
 	for _, verse := range verses {
 		// NOTE: Order is 1st Heading -> Ref -> 2nd Heading -> Content ->
 		// Footnote
@@ -272,9 +175,9 @@ func ProcessVerseMd(verses []*BookVerse, footnotes []*BookFootnote, headings []*
 		for i := range verseHeadings {
 			revIdx := len(verseHeadings) - 1 - i
 
-			var headingFootnotes []*BookFootnote = make([]*BookFootnote, 0)
+			var headingFootnotes []*biblev1.BookFootnote = make([]*biblev1.BookFootnote, 0)
 
-			var headingRefs []*BookReference = make([]*BookReference, 0)
+			var headingRefs []*biblev1.BookReference = make([]*biblev1.BookReference, 0)
 
 			headingFootnotes = append(headingFootnotes, FilterByHeading(verseHeadings[revIdx].Id, footnotes)...)
 
@@ -304,13 +207,13 @@ func ProcessVerseMd(verses []*BookVerse, footnotes []*BookFootnote, headings []*
 
 		currentChapterId = verse.ChapterId
 
-		if verse.ParNumber > currPar {
+		if int(verse.ParNumber) > currPar {
 			mdString += "\n\n" + verse.Content
 		} else {
 			mdString += " " + verse.Content
 		}
 
-		currPar = verse.ParNumber
+		currPar = int(verse.ParNumber)
 	}
 
 	mdString += "\n\n"
@@ -349,7 +252,7 @@ func mdToHTML(md string) string {
 	return string(markdown.Render(doc, renderer))
 }
 
-func ProcessVerseHtml(verses []*BookVerse, footnotes []*BookFootnote, headings []*BookHeading, refs []*BookReference, psalms []*PsalmMetadata) (string, error) {
+func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFootnote, headings []*biblev1.BookHeading, refs []*biblev1.BookReference, psalms []*biblev1.PsalmMetadata) (string, error) {
 	for _, verse := range verses {
 		// NOTE: Order is 1st Heading -> Ref -> 2nd Heading -> Content ->
 		// Footnote
@@ -380,9 +283,9 @@ func ProcessVerseHtml(verses []*BookVerse, footnotes []*BookFootnote, headings [
 		for i := range verseHeadings {
 			revIdx := len(verseHeadings) - 1 - i
 
-			var headingFootnotes []*BookFootnote = make([]*BookFootnote, 0)
+			var headingFootnotes []*biblev1.BookFootnote = make([]*biblev1.BookFootnote, 0)
 
-			var headingRefs []*BookReference = make([]*BookReference, 0)
+			var headingRefs []*biblev1.BookReference = make([]*biblev1.BookReference, 0)
 
 			headingFootnotes = append(headingFootnotes, FilterByHeading(verseHeadings[revIdx].Id, footnotes)...)
 
@@ -411,13 +314,13 @@ func ProcessVerseHtml(verses []*BookVerse, footnotes []*BookFootnote, headings [
 
 		currentChapterId = verse.ChapterId
 
-		if verse.ParNumber > currPar {
+		if int(verse.ParNumber) > currPar {
 			htmlString += "\n\n" + verse.Content
 		} else {
 			htmlString += " " + verse.Content
 		}
 
-		currPar = verse.ParNumber
+		currPar = int(verse.ParNumber)
 	}
 
 	htmlString += "<hr>\n\n<ol>"
