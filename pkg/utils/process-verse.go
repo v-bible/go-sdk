@@ -14,6 +14,8 @@ import (
 	"golang.org/x/exp/utf8string"
 )
 
+const MaxHeading = 6
+
 func FilterByVerse[T biblev1.BookFootnote | biblev1.BookHeading | biblev1.BookReference](verseId string, items []*T) []*T {
 	var itemList []*T
 	itemList = append(itemList, items...)
@@ -185,12 +187,8 @@ func ProcessVerseMd(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFootno
 
 			newHeadingContent := processFootnoteAndRef(verseHeadings[revIdx].Content, headingFootnotes, headingRefs, fnMdLabel, refMdLabel)
 
-			// NOTE: Only first heading is h1
-			if revIdx == 0 {
-				verse.Content = "\n# " + newHeadingContent + "\n" + verse.Content
-			} else {
-				verse.Content = "\n## " + newHeadingContent + "\n" + verse.Content
-			}
+			// NOTE: Heading level starts from 1
+			verse.Content = fmt.Sprintf("\n%s ", strings.Repeat("#", int(verseHeadings[revIdx].Level)%MaxHeading)) + newHeadingContent + "\n" + verse.Content
 		}
 	}
 
@@ -293,12 +291,8 @@ func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFoot
 
 			newHeadingContent := processFootnoteAndRef(verseHeadings[revIdx].Content, headingFootnotes, headingRefs, fnHtmlLabel, refHtmlLabel)
 
-			// NOTE: Only first heading is h1
-			if revIdx == 0 {
-				verse.Content = "\n<h1>" + newHeadingContent + "</h1>\n" + verse.Content
-			} else {
-				verse.Content = "\n<h2>" + newHeadingContent + "</h2>\n" + verse.Content
-			}
+			// NOTE: Heading level starts from 1
+			verse.Content = fmt.Sprintf("\n<h%d>", verseHeadings[revIdx].Level%MaxHeading) + newHeadingContent + fmt.Sprintf("</h%d>\n", verseHeadings[revIdx].Level%MaxHeading) + verse.Content
 		}
 	}
 
