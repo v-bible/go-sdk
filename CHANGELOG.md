@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/v-bible/go-sdk/compare/v1.0.0...v1.0.1) (2025-02-27)
+
+
+### Bug Fixes
+
+* **utils:** migrate to go-sdk types ([3764499](https://github.com/v-bible/go-sdk/commit/3764499aeda6706392a37f9a7c4492f3d62315ea))
+
 ## 1.0.0 (2025-02-26)
 
 
