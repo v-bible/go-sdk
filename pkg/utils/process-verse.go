@@ -167,7 +167,7 @@ func ProcessVerseMd(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFootno
 		}
 
 		// NOTE: Add the Psalm title to the first verse
-		if verse.Order == 0 && verse.ParNumber == 0 && verse.ParIndex == 0 && psalms != nil {
+		if verse.Order == 0 && verse.ParNumber == 0 && verse.ParIndex == 0 {
 			for _, psalm := range psalms {
 				if psalm.ChapterId == verse.ChapterId {
 					verse.Content = fmt.Sprintf("*%s*", psalm.Title) + "\n" + verse.Content
@@ -262,7 +262,7 @@ func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFoot
 		verseRefs := FilterByVerse(verse.Id, refs)
 
 		// NOTE: Clean up p element wrapped because it will create a new line
-		verse.Content = processFootnoteAndRef(regexp.MustCompile(`<p>|</p>`).ReplaceAllString(mdToHTML(verse.Content), ""), verseFootnotes, verseRefs, fnHtmlLabel, refHtmlLabel)
+		verse.Content = processFootnoteAndRef(regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(verse.Content), ""), verseFootnotes, verseRefs, fnHtmlLabel, refHtmlLabel)
 
 		// NOTE: Add verse number only to the first verse
 		if verse.Order == 0 {
@@ -274,10 +274,10 @@ func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFoot
 		}
 
 		// NOTE: Add the Psalm title to the first verse
-		if verse.Order == 0 && verse.ParNumber == 0 && verse.ParIndex == 0 && psalms != nil {
+		if verse.Order == 0 && verse.ParNumber == 0 && verse.ParIndex == 0 {
 			for _, psalm := range psalms {
 				if psalm.ChapterId == verse.ChapterId {
-					verse.Content = fmt.Sprintf("<i>%s</i>", regexp.MustCompile(`<p>|</p>`).ReplaceAllString(mdToHTML(psalm.Title), "")) + "\n" + verse.Content
+					verse.Content = fmt.Sprintf("<i>%s</i>", regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(psalm.Title), "")) + "\n" + verse.Content
 				}
 			}
 		}
@@ -293,7 +293,7 @@ func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFoot
 
 			headingRefs = append(headingRefs, FilterByHeading(verseHeadings[revIdx].Id, refs)...)
 
-			newHeadingContent := processFootnoteAndRef(regexp.MustCompile(`<p>|</p>`).ReplaceAllString(mdToHTML(verseHeadings[revIdx].Content), ""), headingFootnotes, headingRefs, fnHtmlLabel, refHtmlLabel)
+			newHeadingContent := processFootnoteAndRef(regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(verseHeadings[revIdx].Content), ""), headingFootnotes, headingRefs, fnHtmlLabel, refHtmlLabel)
 
 			// NOTE: Heading level starts from 1
 			verse.Content = fmt.Sprintf("\n<h%d>", verseHeadings[revIdx].Level%MaxHeading) + newHeadingContent + fmt.Sprintf("</h%d>\n", verseHeadings[revIdx].Level%MaxHeading) + verse.Content
@@ -324,12 +324,12 @@ func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFoot
 	htmlString += "<hr>\n\n<ol>"
 
 	for _, footnote := range footnotes {
-		htmlString += fmt.Sprintf(`<li id="fn-%d-%s"><p>%s [<a href="#fnref-%d-%s">%d</a>]</p></li>`, footnote.Order+1, footnote.ChapterId, regexp.MustCompile(`<p>|</p>`).ReplaceAllString(mdToHTML(footnote.Content), ""), footnote.Order+1, footnote.ChapterId, footnote.Order+1) + "\n"
+		htmlString += fmt.Sprintf(`<li id="fn-%d-%s"><p>%s [<a href="#fnref-%d-%s">%d</a>]</p></li>`, footnote.Order+1, footnote.ChapterId, regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(footnote.Content), ""), footnote.Order+1, footnote.ChapterId, footnote.Order+1) + "\n"
 	}
 
 	for _, ref := range refs {
 		if ref.Position != nil {
-			htmlString += fmt.Sprintf(`<li id="fn-%d@-%s"><p>%s [<a href="#fnref-%d@-%s">%d@</a>]</p></li>`, ref.Order+1, ref.ChapterId, regexp.MustCompile(`<p>|</p>`).ReplaceAllString(mdToHTML(ref.Content), ""), ref.Order+1, ref.ChapterId, ref.Order+1) + "\n"
+			htmlString += fmt.Sprintf(`<li id="fn-%d@-%s"><p>%s [<a href="#fnref-%d@-%s">%d@</a>]</p></li>`, ref.Order+1, ref.ChapterId, regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(ref.Content), ""), ref.Order+1, ref.ChapterId, ref.Order+1) + "\n"
 		}
 	}
 
@@ -340,9 +340,6 @@ func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFoot
 	// NOTE: Clean up the redundant newlines
 	htmlString = regexp.MustCompile(`\n{3,}`).ReplaceAllString(htmlString, "\n\n")
 	htmlString = strings.TrimSpace(htmlString)
-
-	// NOTE: Convert markdown to HTML to cleanup
-	htmlString = mdToHTML(htmlString)
 
 	return htmlString, nil
 }
