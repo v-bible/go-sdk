@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.2](https://github.com/v-bible/go-sdk/compare/v1.0.1...v1.0.2) (2025-02-28)
+
+
+### Bug Fixes
+
+* **utils:** cleanup process html result ([c5a0dd2](https://github.com/v-bible/go-sdk/commit/c5a0dd2a529f7925c03d5d4e0a61ec4b6749576b))
+* **utils:** markdown in verses not converted to html ([c5a0dd2](https://github.com/v-bible/go-sdk/commit/c5a0dd2a529f7925c03d5d4e0a61ec4b6749576b))
+* **utils:** update heading level ([da65f4a](https://github.com/v-bible/go-sdk/commit/da65f4afa19cc9cdffa5582778f382d9ad3204c6))
+
 ## [1.0.1](https://github.com/v-bible/go-sdk/compare/v1.0.0...v1.0.1) (2025-02-27)
 
 
