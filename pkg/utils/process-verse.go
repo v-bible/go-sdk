@@ -1,16 +1,17 @@
 package utils
 
 import (
+	"bytes"
 	"cmp"
 	"fmt"
 	"regexp"
 	"slices"
 	"strings"
 
-	"github.com/gomarkdown/markdown"
-	"github.com/gomarkdown/markdown/html"
-	"github.com/gomarkdown/markdown/parser"
 	biblev1 "github.com/v-bible/protobuf/pkg/proto/bible/v1"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/renderer/html"
 	"golang.org/x/exp/utf8string"
 )
 
@@ -237,17 +238,19 @@ func ProcessVerseMd(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFootno
 }
 
 func mdToHTML(md string) string {
-	// create markdown parser with extensions
-	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
-	p := parser.NewWithExtensions(extensions)
-	doc := p.Parse([]byte(md))
+	converter := goldmark.New(
+		goldmark.WithExtensions(extension.GFM),
+		goldmark.WithRendererOptions(
+			html.WithUnsafe(),
+		),
+	)
 
-	// create HTML renderer with extensions
-	htmlFlags := html.CommonFlags | html.HrefTargetBlank
-	opts := html.RendererOptions{Flags: htmlFlags}
-	renderer := html.NewRenderer(opts)
+	var res bytes.Buffer
+	if err := converter.Convert([]byte(md), &res); err != nil {
+		return md
+	}
 
-	return string(markdown.Render(doc, renderer))
+	return res.String()
 }
 
 func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFootnote, headings []*biblev1.BookHeading, refs []*biblev1.BookReference, psalms []*biblev1.PsalmMetadata) (string, error) {
@@ -258,7 +261,8 @@ func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFoot
 		verseHeadings := FilterByVerse(verse.Id, headings)
 		verseRefs := FilterByVerse(verse.Id, refs)
 
-		verse.Content = processFootnoteAndRef(verse.Content, verseFootnotes, verseRefs, fnHtmlLabel, refHtmlLabel)
+		// NOTE: Clean up p element wrapped because it will create a new line
+		verse.Content = processFootnoteAndRef(regexp.MustCompile(`<p>|</p>`).ReplaceAllString(mdToHTML(verse.Content), ""), verseFootnotes, verseRefs, fnHtmlLabel, refHtmlLabel)
 
 		// NOTE: Add verse number only to the first verse
 		if verse.Order == 0 {
@@ -273,7 +277,7 @@ func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFoot
 		if verse.Order == 0 && verse.ParNumber == 0 && verse.ParIndex == 0 && psalms != nil {
 			for _, psalm := range psalms {
 				if psalm.ChapterId == verse.ChapterId {
-					verse.Content = fmt.Sprintf("<i>%s</i>", psalm.Title) + "\n" + verse.Content
+					verse.Content = fmt.Sprintf("<i>%s</i>", regexp.MustCompile(`<p>|</p>`).ReplaceAllString(mdToHTML(psalm.Title), "")) + "\n" + verse.Content
 				}
 			}
 		}
@@ -289,7 +293,7 @@ func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFoot
 
 			headingRefs = append(headingRefs, FilterByHeading(verseHeadings[revIdx].Id, refs)...)
 
-			newHeadingContent := processFootnoteAndRef(verseHeadings[revIdx].Content, headingFootnotes, headingRefs, fnHtmlLabel, refHtmlLabel)
+			newHeadingContent := processFootnoteAndRef(regexp.MustCompile(`<p>|</p>`).ReplaceAllString(mdToHTML(verseHeadings[revIdx].Content), ""), headingFootnotes, headingRefs, fnHtmlLabel, refHtmlLabel)
 
 			// NOTE: Heading level starts from 1
 			verse.Content = fmt.Sprintf("\n<h%d>", verseHeadings[revIdx].Level%MaxHeading) + newHeadingContent + fmt.Sprintf("</h%d>\n", verseHeadings[revIdx].Level%MaxHeading) + verse.Content
@@ -320,19 +324,24 @@ func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFoot
 	htmlString += "<hr>\n\n<ol>"
 
 	for _, footnote := range footnotes {
-		htmlString += fmt.Sprintf(`<li id="fn-%d-%s"><p>%s [<a href="#fnref-%d-%s">%d</a>]</p></li>`, footnote.Order+1, footnote.ChapterId, footnote.Content, footnote.Order+1, footnote.ChapterId, footnote.Order+1) + "\n"
+		htmlString += fmt.Sprintf(`<li id="fn-%d-%s"><p>%s [<a href="#fnref-%d-%s">%d</a>]</p></li>`, footnote.Order+1, footnote.ChapterId, regexp.MustCompile(`<p>|</p>`).ReplaceAllString(mdToHTML(footnote.Content), ""), footnote.Order+1, footnote.ChapterId, footnote.Order+1) + "\n"
 	}
 
 	for _, ref := range refs {
 		if ref.Position != nil {
-			htmlString += fmt.Sprintf(`<li id="fn-%d@-%s"><p>%s [<a href="#fnref-%d@-%s">%d@</a>]</p></li>`, ref.Order+1, ref.ChapterId, ref.Content, ref.Order+1, ref.ChapterId, ref.Order+1) + "\n"
+			htmlString += fmt.Sprintf(`<li id="fn-%d@-%s"><p>%s [<a href="#fnref-%d@-%s">%d@</a>]</p></li>`, ref.Order+1, ref.ChapterId, regexp.MustCompile(`<p>|</p>`).ReplaceAllString(mdToHTML(ref.Content), ""), ref.Order+1, ref.ChapterId, ref.Order+1) + "\n"
 		}
 	}
 
 	htmlString += "</ol>"
 
+	// NOTE: Should I clean up all "\n"?
+	htmlString = strings.ReplaceAll(htmlString, "\n</blockquote>", "</blockquote>")
+	// NOTE: Clean up the redundant newlines
+	htmlString = regexp.MustCompile(`\n{3,}`).ReplaceAllString(htmlString, "\n\n")
 	htmlString = strings.TrimSpace(htmlString)
 
+	// NOTE: Convert markdown to HTML to cleanup
 	htmlString = mdToHTML(htmlString)
 
 	return htmlString, nil
