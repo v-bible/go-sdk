@@ -34,17 +34,17 @@ func EasterDate(y int) time.Time {
 }
 
 type CalendarEntry struct {
-	FirstReading  interface{} `json:"firstReading"`
-	Psalm         interface{} `json:"psalm"`
-	SecondReading interface{} `json:"secondReading"`
-	Gospel        interface{} `json:"gospel"`
-	YearCycle     string      `json:"yearCycle"`
-	YearNumber    string      `json:"yearNumber"`
-	Season        string      `json:"season"`
-	WeekdayType   string      `json:"weekdayType"`
-	WeekOrder     string      `json:"weekOrder"`
-	PeriodOfDay   string      `json:"periodOfDay"`
-	Description   string      `json:"description"`
+	FirstReading  any    `json:"firstReading"`
+	Psalm         any    `json:"psalm"`
+	SecondReading any    `json:"secondReading"`
+	Gospel        any    `json:"gospel"`
+	YearCycle     string `json:"yearCycle"`
+	YearNumber    string `json:"yearNumber"`
+	Season        string `json:"season"`
+	WeekdayType   string `json:"weekdayType"`
+	WeekOrder     string `json:"weekOrder"`
+	PeriodOfDay   string `json:"periodOfDay"`
+	Description   string `json:"description"`
 	ExtraCalendarEntry
 }
 
@@ -55,25 +55,25 @@ type CalendarEntryData struct {
 }
 
 type ExtraCalendarEntry struct {
-	SecondPsalm    interface{} `json:"secondPsalm,omitempty"`
-	ThirdReading   interface{} `json:"thirdReading,omitempty"`
-	ThirdPsalm     interface{} `json:"thirdPsalm,omitempty"`
-	FourthReading  interface{} `json:"fourthReading,omitempty"`
-	FourthPsalm    interface{} `json:"fourthPsalm,omitempty"`
-	FifthReading   interface{} `json:"fifthReading,omitempty"`
-	FifthPsalm     interface{} `json:"fifthPsalm,omitempty"`
-	SixthReading   interface{} `json:"sixthReading,omitempty"`
-	SixthPsalm     interface{} `json:"sixthPsalm,omitempty"`
-	SeventhReading interface{} `json:"seventhReading,omitempty"`
-	SeventhPsalm   interface{} `json:"seventhPsalm,omitempty"`
-	EighthReading  interface{} `json:"eighthReading,omitempty"`
-	EighthPsalm    interface{} `json:"eighthPsalm,omitempty"`
+	SecondPsalm    any `json:"secondPsalm,omitempty"`
+	ThirdReading   any `json:"thirdReading,omitempty"`
+	ThirdPsalm     any `json:"thirdPsalm,omitempty"`
+	FourthReading  any `json:"fourthReading,omitempty"`
+	FourthPsalm    any `json:"fourthPsalm,omitempty"`
+	FifthReading   any `json:"fifthReading,omitempty"`
+	FifthPsalm     any `json:"fifthPsalm,omitempty"`
+	SixthReading   any `json:"sixthReading,omitempty"`
+	SixthPsalm     any `json:"sixthPsalm,omitempty"`
+	SeventhReading any `json:"seventhReading,omitempty"`
+	SeventhPsalm   any `json:"seventhPsalm,omitempty"`
+	EighthReading  any `json:"eighthReading,omitempty"`
+	EighthPsalm    any `json:"eighthPsalm,omitempty"`
 }
 
 type Options struct {
-	IsEpiphanyOn6thJan        *bool
-	IsAscensionOfTheLordO40th *bool
-	AdditionalCalendar        func(year int, options *Options) ([][]CalendarEntryData, error)
+	IsEpiphanyOn6thJan         *bool
+	IsAscensionOfTheLordOn40th *bool
+	AdditionalCalendar         func(year int, options *Options) ([][]CalendarEntryData, error)
 }
 
 var YearCycleMap = []string{"C", "A", "B"}
@@ -949,8 +949,8 @@ func GenerateCalendar(year int, options *Options) ([]CalendarEntryData, error) {
 			isEpiphanyOn6thJan = *options.IsEpiphanyOn6thJan
 		}
 
-		if options.IsAscensionOfTheLordO40th != nil {
-			isAscensionOfTheLordOn40th = *options.IsAscensionOfTheLordO40th
+		if options.IsAscensionOfTheLordOn40th != nil {
+			isAscensionOfTheLordOn40th = *options.IsAscensionOfTheLordOn40th
 		}
 
 		if options.AdditionalCalendar != nil {
