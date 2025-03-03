@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/v-bible/go-sdk/compare/v1.0.3...v1.0.4) (2025-03-03)
+
+
+### Bug Fixes
+
+* **utils:** incorrect naming ([2016bff](https://github.com/v-bible/go-sdk/commit/2016bffbc4383109cb2e5b7f6a2b2b623ecdf16c))
+
 ## [1.0.3](https://github.com/v-bible/go-sdk/compare/v1.0.2...v1.0.3) (2025-02-28)
 
 
