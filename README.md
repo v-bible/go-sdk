@@ -23,7 +23,7 @@
   <a href="https://github.com/v-bible/go-sdk/issues/">
     <img src="https://img.shields.io/github/issues/v-bible/go-sdk" alt="open issues" />
   </a>
-  <a href="https://github.com/v-bible/go-sdk/blob/main/LICENSE">
+  <a href="https://github.com/v-bible/go-sdk/blob/main/LICENSE.md">
     <img src="https://img.shields.io/github/license/v-bible/go-sdk.svg" alt="license" />
   </a>
 </p>
