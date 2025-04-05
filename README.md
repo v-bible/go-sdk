@@ -112,6 +112,12 @@ go mod download
 
 #### Generate Liturgical Calendar
 
+<!-- prettier-ignore -->
+> [!NOTE]
+> **Deprecated**: The method has moved to
+> [`v-bible/liturgical-calendar-generator`](https://github.com/v-bible/liturgical-calendar-generator)
+> repository.
+
 The liturgical data is collected from [The Lectionary for Mass (1998/2002 USA
 Edition)](https://catholic-resources.org/Lectionary/1998USL.htm), which is
 compiled by Felix Just, S.J., Ph.D. The data is stored in
