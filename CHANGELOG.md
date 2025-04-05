@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.5](https://github.com/v-bible/go-sdk/compare/v1.0.4...v1.0.5) (2025-04-05)
+
+
+### Bug Fixes
+
+* **lib:** update gen calendar ([e0393e4](https://github.com/v-bible/go-sdk/commit/e0393e4216bf39a084aebe6c90f65cbd64c7f268))
+* **lib:** update gen calendar ([a6eeced](https://github.com/v-bible/go-sdk/commit/a6eecedaef958b89a2546b2d167d5ae36ed3a00a))
+
 ## [1.0.4](https://github.com/v-bible/go-sdk/compare/v1.0.3...v1.0.4) (2025-03-03)
 
 
