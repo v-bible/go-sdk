@@ -6,7 +6,7 @@ require (
 	github.com/bokwoon95/wgo v0.5.6
 	github.com/golangci/golangci-lint v1.59.0
 	github.com/samber/lo v1.47.0
-	github.com/v-bible/protobuf/pkg/proto v0.5.2
+	github.com/v-bible/protobuf/pkg/proto v0.5.7
 	github.com/yuin/goldmark v1.7.8
 	golang.org/x/exp v0.0.0-20240103183307-be819d1f06fc
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d
