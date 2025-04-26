@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.6](https://github.com/v-bible/go-sdk/compare/v1.0.5...v1.0.6) (2025-04-26)
+
+
+### Bug Fixes
+
+* **pkg, utils:** update fn & ref check ([caa1f02](https://github.com/v-bible/go-sdk/commit/caa1f02f6ea48fe2a0f1df38e9af683d38489393))
+* **pkg, utils:** update fn & ref check ([f4a0b0b](https://github.com/v-bible/go-sdk/commit/f4a0b0bd25a2472b86023a076de2138a8dc88836))
+
 ## [1.0.5](https://github.com/v-bible/go-sdk/compare/v1.0.4...v1.0.5) (2025-04-05)
 
 
