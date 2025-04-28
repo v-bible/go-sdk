@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.7](https://github.com/v-bible/go-sdk/compare/v1.0.6...v1.0.7) (2025-04-28)
+
+
+### Bug Fixes
+
+* remove deprecated funcs ([cdb0b94](https://github.com/v-bible/go-sdk/commit/cdb0b94bfe0adfc17a58eada9c6b8b24bed54119))
+* remove deprecated funcs ([12fdf64](https://github.com/v-bible/go-sdk/commit/12fdf642250869c07f91d1a3b4564cada4efdb47))
+
 ## [1.0.6](https://github.com/v-bible/go-sdk/compare/v1.0.5...v1.0.6) (2025-04-26)
 
 
