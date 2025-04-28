@@ -50,10 +50,8 @@
   - [Run Locally](#running-run-locally)
 - [Usage](#eyes-usage)
   - [Utils](#utils)
-    - [Generate Liturgical Calendar](#generate-liturgical-calendar)
     - [Process Verse](#process-verse)
     - [Verse Parse](#verse-parse)
-  - [Scripts](#scripts)
 - [Roadmap](#compass-roadmap)
 - [Contributing](#wave-contributing)
   - [Code of Conduct](#scroll-code-of-conduct)
@@ -69,7 +67,7 @@
 
 ### :bangbang: Prerequisites
 
-- Go: `1.22.3`.
+- Go: `1.23.4`.
 
 - Go tools:
 
@@ -110,58 +108,7 @@ go mod download
 
 ### Utils
 
-#### Generate Liturgical Calendar
-
-<!-- prettier-ignore -->
-> [!NOTE]
-> **Deprecated**: The method has moved to
-> [`v-bible/liturgical-calendar-generator`](https://github.com/v-bible/liturgical-calendar-generator)
-> repository.
-
-The liturgical data is collected from [The Lectionary for Mass (1998/2002 USA
-Edition)](https://catholic-resources.org/Lectionary/1998USL.htm), which is
-compiled by Felix Just, S.J., Ph.D. The data is stored in
-[v-bible/static](https://github.com/v-bible/static) repository.
-
-Some considerations when generating the liturgical calendar:
-
-- Currently, I don't have "The Lectionary for Mass" book to verify the data. If
-  you find any mistakes, please report them to me.
-
-- The verse for the liturgical may varies from different languages and
-  translations. Compare the liturgical for the same day **04/03/2024** (Monday of the Third Week of Lent) from
-  [vaticanews.va](https://vaticannews.va/):
-  in French, Español,
-  Vietnamese, and English:
-
-  - [French](https://www.vaticannews.va/fr/evangile-du-jour.html):
-    - First Reading: `2 R 5,1-15a`.
-    - Gospel: `Lc 4,24-30`.
-  - [Español](https://www.vaticannews.va/es/evangelio-de-hoy.html):
-    - First Reading: `2 Reyes 5,1-15`.
-    - Gospel: `Lc 4,24-30`.
-  - [Vietnamese](https://www.vaticannews.va/vi/loi-chua-hang-ngay.html):
-    - First Reading: `2 V 5,1-15a`.
-    - Gospel: `Lc 4,24-3`.
-  - [English](https://www.vaticannews.va/en/word-of-the-day.html):
-    - First Reading: `2 Kgs 5:1-15ab`.
-    - Gospel: `Lk 4:24-30`.
-  - [v-bible/static](https://github.com/v-bible/static):
-    - First Reading: `2 Kgs 5:1-15a`.
-    - Gospel: `Luke 4:24-30`.
-
-- In the same day may have multiple data for the liturgical (additional
-  celebrations, feasts or solemnities may vary from different countries).
-
-- The liturgical calendar also changes based on options:
-
-  - Is Epiphany on 6th January or Sunday after 1st January?
-  - Is Ascension on Thursday or Sunday after 40 days of Easter?
-  - Special celebrations for each country.
-
-- User can also provide user-defined data for the liturgical calendar.
-
-### Process Verse
+#### Process Verse
 
 Convert verse data to markdown and HTML format.
 
@@ -169,7 +116,7 @@ Convert verse data to markdown and HTML format.
 > For markdown format, your markdown processor SHOULD support [GFM
 > footnotes](https://github.blog/changelog/2021-09-30-footnotes-now-supported-in-markdown-fields/).
 
-### Verse Parse
+#### Verse Parse
 
 This util comply with the
 [Biblical References: Format, Examples,
@@ -211,10 +158,6 @@ For parsing verses:
   `a`, `1` for `b`, `2` for `c`, etc.
 - `*` is converted to `Number`: `-1` and `Order` :`-1`.
 - `9:12b` is converted `Number`: `12` and `Order` :`1`.
-
-## Scripts
-
-- `scripts/gen-calendar.go`: Generate liturgical calendar.
 
 <!-- Roadmap -->
 
