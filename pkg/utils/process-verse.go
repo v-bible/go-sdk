@@ -26,19 +26,19 @@ func FilterByVerse[T biblev1.BookFootnote | biblev1.BookHeading | biblev1.BookRe
 
 		switch i := any(item).(type) {
 		case *biblev1.BookFootnote:
-			if i.VerseId == "" {
+			if i.VerseId == nil {
 				return true
 			}
 
-			check = i.VerseId != verseId
+			check = *i.VerseId != verseId
 		case *biblev1.BookHeading:
 			check = i.VerseId != verseId
 		case *biblev1.BookReference:
-			if i.VerseId == "" {
+			if i.VerseId == nil {
 				return true
 			}
 
-			check = i.VerseId != verseId
+			check = *i.VerseId != verseId
 		}
 
 		return check
@@ -56,17 +56,17 @@ func FilterByHeading[T biblev1.BookFootnote | biblev1.BookReference](headingId s
 
 		switch i := any(item).(type) {
 		case *biblev1.BookFootnote:
-			if i.HeadingId == "" {
+			if i.HeadingId == nil {
 				return true
 			}
 
-			check = i.HeadingId != headingId
+			check = *i.HeadingId != headingId
 		case *biblev1.BookReference:
-			if i.HeadingId == "" {
+			if i.HeadingId == nil {
 				return true
 			}
 
-			check = i.HeadingId != headingId
+			check = *i.HeadingId != headingId
 		}
 
 		return check
