@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/samber/lo"
 	biblev1 "github.com/v-bible/protobuf/pkg/proto/bible/v1"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
@@ -16,64 +17,6 @@ import (
 )
 
 const MaxHeading = 6
-
-func FilterByVerse[T biblev1.BookFootnote | biblev1.BookHeading | biblev1.BookReference](verseId string, items []*T) []*T {
-	var itemList []*T
-	itemList = append(itemList, items...)
-
-	itemList = slices.DeleteFunc(itemList, func(item *T) bool {
-		var check bool
-
-		switch i := any(item).(type) {
-		case *biblev1.BookFootnote:
-			if i.VerseId == nil {
-				return true
-			}
-
-			check = *i.VerseId != verseId
-		case *biblev1.BookHeading:
-			check = i.VerseId != verseId
-		case *biblev1.BookReference:
-			if i.VerseId == nil {
-				return true
-			}
-
-			check = *i.VerseId != verseId
-		}
-
-		return check
-	})
-
-	return itemList
-}
-
-func FilterByHeading[T biblev1.BookFootnote | biblev1.BookReference](headingId string, items []*T) []*T {
-	var itemList []*T
-	itemList = append(itemList, items...)
-
-	itemList = slices.DeleteFunc(itemList, func(item *T) bool {
-		var check bool
-
-		switch i := any(item).(type) {
-		case *biblev1.BookFootnote:
-			if i.HeadingId == nil {
-				return true
-			}
-
-			check = *i.HeadingId != headingId
-		case *biblev1.BookReference:
-			if i.HeadingId == nil {
-				return true
-			}
-
-			check = *i.HeadingId != headingId
-		}
-
-		return check
-	})
-
-	return itemList
-}
 
 type MapNote struct {
 	ChapterId string
@@ -148,29 +91,54 @@ var refHtmlLabel = func(order int32, chapterId string) string {
 }
 
 func ProcessVerseMd(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFootnote, headings []*biblev1.BookHeading, refs []*biblev1.BookReference, psalms []*biblev1.PsalmMetadata) (string, error) {
-	for _, verse := range verses {
+	newVerses := make([]*biblev1.BookVerse, len(verses))
+
+	for i := range verses {
+		newVerses[i] = &biblev1.BookVerse{
+			Id:        verses[i].Id,
+			Number:    verses[i].Number,
+			Content:   verses[i].Content,
+			Order:     verses[i].Order,
+			ParNumber: verses[i].ParNumber,
+			ParIndex:  verses[i].ParIndex,
+			IsPoetry:  verses[i].IsPoetry,
+			CreatedAt: verses[i].CreatedAt,
+			UpdatedAt: verses[i].UpdatedAt,
+			ChapterId: verses[i].ChapterId,
+		}
+	}
+
+	for _, verse := range newVerses {
 		// NOTE: Order is 1st Heading -> Ref -> 2nd Heading -> Content ->
 		// Footnote
-		verseFootnotes := FilterByVerse(verse.Id, footnotes)
-		verseHeadings := FilterByVerse(verse.Id, headings)
-		verseRefs := FilterByVerse(verse.Id, refs)
+		verseFootnotes := lo.Filter(footnotes, func(fn *biblev1.BookFootnote, index int) bool {
+			return fn.VerseId != nil && *fn.VerseId == verse.Id
+		})
+		verseHeadings := lo.Filter(headings, func(h *biblev1.BookHeading, index int) bool {
+			return h.VerseId == verse.Id
+		})
+		verseRefs := lo.Filter(refs, func(r *biblev1.BookReference, index int) bool {
+			return r.VerseId != nil && *r.VerseId == verse.Id
+		})
 
-		verse.Content = processFootnoteAndRef(verse.Content, verseFootnotes, verseRefs, fnMdLabel, refMdLabel)
+		newContent := strings.Clone(verse.Content)
+
+		newContent = processFootnoteAndRef(newContent, verseFootnotes, verseRefs, fnMdLabel, refMdLabel)
 
 		// NOTE: Add verse number only to the first verse
 		if verse.Order == 0 {
-			verse.Content = fmt.Sprintf("<sup><b>%d</b></sup>", verse.Number) + " " + verse.Content
+			newContent = fmt.Sprintf("<sup><b>%d</b></sup>", verse.Number) + " " + newContent
 		}
 
 		if verse.IsPoetry {
-			verse.Content = "\n> " + verse.Content + "\n>"
+			newContent = "\n> " + newContent + "\n>"
 		}
 
 		// NOTE: Add the Psalm title to the first verse
 		if verse.Order == 0 && verse.ParNumber == 0 && verse.ParIndex == 0 {
 			for _, psalm := range psalms {
 				if psalm.ChapterId == verse.ChapterId {
-					verse.Content = fmt.Sprintf("*%s*", psalm.Title) + "\n" + verse.Content
+					newContent = fmt.Sprintf("*%s*", psalm.Title) + "\n" + newContent
 				}
 			}
 		}
@@ -178,19 +146,21 @@ func ProcessVerseMd(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFootno
 		for i := range verseHeadings {
 			revIdx := len(verseHeadings) - 1 - i
 
-			var headingFootnotes []*biblev1.BookFootnote = make([]*biblev1.BookFootnote, 0)
+			headingFootnotes := lo.Filter(footnotes, func(fn *biblev1.BookFootnote, index int) bool {
+				return fn.HeadingId != nil && *fn.HeadingId == verseHeadings[revIdx].Id
+			})
 
-			var headingRefs []*biblev1.BookReference = make([]*biblev1.BookReference, 0)
-
-			headingFootnotes = append(headingFootnotes, FilterByHeading(verseHeadings[revIdx].Id, footnotes)...)
-
-			headingRefs = append(headingRefs, FilterByHeading(verseHeadings[revIdx].Id, refs)...)
+			headingRefs := lo.Filter(refs, func(r *biblev1.BookReference, index int) bool {
+				return r.HeadingId != nil && *r.HeadingId == verseHeadings[revIdx].Id
+			})
 
 			newHeadingContent := processFootnoteAndRef(verseHeadings[revIdx].Content, headingFootnotes, headingRefs, fnMdLabel, refMdLabel)
 
 			// NOTE: Heading level starts from 1
-			verse.Content = fmt.Sprintf("\n%s ", strings.Repeat("#", int(verseHeadings[revIdx].Level)%MaxHeading)) + newHeadingContent + "\n" + verse.Content
+			newContent = fmt.Sprintf("\n%s ", strings.Repeat("#", int(verseHeadings[revIdx].Level)%MaxHeading)) + newHeadingContent + "\n" + newContent
 		}
+
+		verse.Content = newContent
 	}
 
 	mdString := ""
@@ -198,7 +168,7 @@ func ProcessVerseMd(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFootno
 	// NOTE: Store to add newlines between chapters
 	currentChapterId := ""
 
-	for _, verse := range verses {
+	for _, verse := range newVerses {
 		// NOTE: Add line break between chapters
 		if currentChapterId != "" && currentChapterId != verse.ChapterId {
 			mdString += "\n\n---\n\n"
@@ -254,30 +224,55 @@ func mdToHTML(md string) string {
 }
 
 func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFootnote, headings []*biblev1.BookHeading, refs []*biblev1.BookReference, psalms []*biblev1.PsalmMetadata) (string, error) {
-	for _, verse := range verses {
+	newVerses := make([]*biblev1.BookVerse, len(verses))
+
+	for i := range verses {
+		newVerses[i] = &biblev1.BookVerse{
+			Id:        verses[i].Id,
+			Number:    verses[i].Number,
+			Content:   verses[i].Content,
+			Order:     verses[i].Order,
+			ParNumber: verses[i].ParNumber,
+			ParIndex:  verses[i].ParIndex,
+			IsPoetry:  verses[i].IsPoetry,
+			CreatedAt: verses[i].CreatedAt,
+			UpdatedAt: verses[i].UpdatedAt,
+			ChapterId: verses[i].ChapterId,
+		}
+	}
+
+	for _, verse := range newVerses {
 		// NOTE: Order is 1st Heading -> Ref -> 2nd Heading -> Content ->
 		// Footnote
-		verseFootnotes := FilterByVerse(verse.Id, footnotes)
-		verseHeadings := FilterByVerse(verse.Id, headings)
-		verseRefs := FilterByVerse(verse.Id, refs)
+		verseFootnotes := lo.Filter(footnotes, func(fn *biblev1.BookFootnote, index int) bool {
+			return fn.VerseId != nil && *fn.VerseId == verse.Id
+		})
+		verseHeadings := lo.Filter(headings, func(h *biblev1.BookHeading, index int) bool {
+			return h.VerseId == verse.Id
+		})
+		verseRefs := lo.Filter(refs, func(r *biblev1.BookReference, index int) bool {
+			return r.VerseId != nil && *r.VerseId == verse.Id
+		})
+
+		newContent := strings.Clone(verse.Content)
 
 		// NOTE: Clean up p element wrapped because it will create a new line
-		verse.Content = processFootnoteAndRef(regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(verse.Content), ""), verseFootnotes, verseRefs, fnHtmlLabel, refHtmlLabel)
+		newContent = processFootnoteAndRef(regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(newContent), ""), verseFootnotes, verseRefs, fnHtmlLabel, refHtmlLabel)
 
 		// NOTE: Add verse number only to the first verse
 		if verse.Order == 0 {
-			verse.Content = fmt.Sprintf("<sup><b>%d</b></sup>", verse.Number) + " " + verse.Content
+			newContent = fmt.Sprintf("<sup><b>%d</b></sup>", verse.Number) + " " + newContent
 		}
 
 		if verse.IsPoetry {
-			verse.Content = "\n<blockquote>" + verse.Content + "</blockquote>\n"
+			newContent = "\n<blockquote>" + newContent + "</blockquote>\n"
 		}
 
 		// NOTE: Add the Psalm title to the first verse
 		if verse.Order == 0 && verse.ParNumber == 0 && verse.ParIndex == 0 {
 			for _, psalm := range psalms {
 				if psalm.ChapterId == verse.ChapterId {
-					verse.Content = fmt.Sprintf("<i>%s</i>", regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(psalm.Title), "")) + "\n" + verse.Content
+					newContent = fmt.Sprintf("<i>%s</i>", regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(psalm.Title), "")) + "\n" + newContent
 				}
 			}
 		}
@@ -285,19 +280,21 @@ func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFoot
 		for i := range verseHeadings {
 			revIdx := len(verseHeadings) - 1 - i
 
-			var headingFootnotes []*biblev1.BookFootnote = make([]*biblev1.BookFootnote, 0)
+			headingFootnotes := lo.Filter(footnotes, func(fn *biblev1.BookFootnote, index int) bool {
+				return fn.HeadingId != nil && *fn.HeadingId == verseHeadings[revIdx].Id
+			})
 
-			var headingRefs []*biblev1.BookReference = make([]*biblev1.BookReference, 0)
-
-			headingFootnotes = append(headingFootnotes, FilterByHeading(verseHeadings[revIdx].Id, footnotes)...)
-
-			headingRefs = append(headingRefs, FilterByHeading(verseHeadings[revIdx].Id, refs)...)
+			headingRefs := lo.Filter(refs, func(r *biblev1.BookReference, index int) bool {
+				return r.HeadingId != nil && *r.HeadingId == verseHeadings[revIdx].Id
+			})
 
 			newHeadingContent := processFootnoteAndRef(regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(verseHeadings[revIdx].Content), ""), headingFootnotes, headingRefs, fnHtmlLabel, refHtmlLabel)
 
 			// NOTE: Heading level starts from 1
-			verse.Content = fmt.Sprintf("\n<h%d>", verseHeadings[revIdx].Level%MaxHeading) + newHeadingContent + fmt.Sprintf("</h%d>\n", verseHeadings[revIdx].Level%MaxHeading) + verse.Content
+			newContent = fmt.Sprintf("\n<h%d>", verseHeadings[revIdx].Level%MaxHeading) + newHeadingContent + fmt.Sprintf("</h%d>\n", verseHeadings[revIdx].Level%MaxHeading) + newContent
 		}
+
+		verse.Content = newContent
 	}
 
 	htmlString := ""
@@ -305,7 +302,7 @@ func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFoot
 	// NOTE: Store to add newlines between chapters
 	currentChapterId := ""
 
-	for _, verse := range verses {
+	for _, verse := range newVerses {
 		if currentChapterId != "" && currentChapterId != verse.ChapterId {
 			htmlString += "\n\n<hr>\n\n"
 		}
