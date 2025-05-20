@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.8](https://github.com/v-bible/go-sdk/compare/v1.0.7...v1.0.8) (2025-05-20)
+
+
+### Bug Fixes
+
+* **lib:** incorrect verse handling ([290d672](https://github.com/v-bible/go-sdk/commit/290d672185fea7564e0dc3d8688c10b4ed7cfc0d))
+* **lib:** incorrect verse handling ([c5e1dbf](https://github.com/v-bible/go-sdk/commit/c5e1dbf27fd8caeafc19847d8f3cfe3b29a533c5))
+
 ## [1.0.7](https://github.com/v-bible/go-sdk/compare/v1.0.6...v1.0.7) (2025-04-28)
 
 
