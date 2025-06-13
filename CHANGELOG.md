@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.9](https://github.com/v-bible/go-sdk/compare/v1.0.8...v1.0.9) (2025-06-13)
+
+
+### Bug Fixes
+
+* **utils:** duplicate fns & refs ([ca8f721](https://github.com/v-bible/go-sdk/commit/ca8f7215cd7c5d267e7a54bf5d1cce493593ef4a))
+* **utils:** duplicate fns & refs ([33a7476](https://github.com/v-bible/go-sdk/commit/33a7476c79abe899134c917e7c1d67784175de5b))
+* **utils:** update process format ([33a7476](https://github.com/v-bible/go-sdk/commit/33a7476c79abe899134c917e7c1d67784175de5b))
+
 ## [1.0.8](https://github.com/v-bible/go-sdk/compare/v1.0.7...v1.0.8) (2025-05-20)
 
 
