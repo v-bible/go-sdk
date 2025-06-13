@@ -187,15 +187,24 @@ func ProcessVerseMd(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFootno
 
 	mdString += "\n\n"
 
+	fnSection := ""
+
 	for _, footnote := range footnotes {
-		mdString += fmt.Sprintf("[^%d-%s]: %s", footnote.Order+1, footnote.ChapterId, footnote.Content) + "\n"
+		fnSection += fmt.Sprintf("[^%d-%s]: %s", footnote.Order+1, footnote.ChapterId, footnote.Content) + "\n\n"
 	}
 
 	for _, ref := range refs {
 		if ref.Position != nil {
-			mdString += fmt.Sprintf("[^%d@-%s]: %s", ref.Order+1, ref.ChapterId, ref.Content) + "\n"
+			fnSection += fmt.Sprintf("[^%d@-%s]: %s", ref.Order+1, ref.ChapterId, ref.Content) + "\n\n"
 		}
 	}
+
+	fnLines := strings.Split(fnSection, "\n\n")
+
+	// NOTE: Remove duplicate footnotes and references
+	uniqueFnLines := lo.Uniq(fnLines)
+
+	mdString += strings.Join(uniqueFnLines, "\n\n")
 
 	// NOTE: Clean up the blockquote redundant characters
 	mdString = regexp.MustCompile(`>\n+>`).ReplaceAllString(mdString, ">\n>")
@@ -320,15 +329,24 @@ func ProcessVerseHtml(verses []*biblev1.BookVerse, footnotes []*biblev1.BookFoot
 
 	htmlString += "<hr>\n\n<ol>"
 
+	fnSection := ""
+
 	for _, footnote := range footnotes {
-		htmlString += fmt.Sprintf(`<li id="fn-%d-%s"><p>%s [<a href="#fnref-%d-%s">%d</a>]</p></li>`, footnote.Order+1, footnote.ChapterId, regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(footnote.Content), ""), footnote.Order+1, footnote.ChapterId, footnote.Order+1) + "\n"
+		fnSection += fmt.Sprintf(`<li id="fn-%d-%s"><p>%s [<a href="#fnref-%d-%s">%d</a>]</p></li>`, footnote.Order+1, footnote.ChapterId, regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(footnote.Content), ""), footnote.Order+1, footnote.ChapterId, footnote.Order+1) + "\n\n"
 	}
 
 	for _, ref := range refs {
 		if ref.Position != nil {
-			htmlString += fmt.Sprintf(`<li id="fn-%d@-%s"><p>%s [<a href="#fnref-%d@-%s">%d@</a>]</p></li>`, ref.Order+1, ref.ChapterId, regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(ref.Content), ""), ref.Order+1, ref.ChapterId, ref.Order+1) + "\n"
+			fnSection += fmt.Sprintf(`<li id="fn-%d@-%s"><p>%s [<a href="#fnref-%d@-%s">%d@</a>]</p></li>`, ref.Order+1, ref.ChapterId, regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(ref.Content), ""), ref.Order+1, ref.ChapterId, ref.Order+1) + "\n\n"
 		}
 	}
+
+	fnLines := strings.Split(fnSection, "\n\n")
+
+	// NOTE: Remove duplicate footnotes and references
+	uniqueFnLines := lo.Uniq(fnLines)
+
+	htmlString += strings.Join(uniqueFnLines, "\n\n")
 
 	htmlString += "</ol>"
 
