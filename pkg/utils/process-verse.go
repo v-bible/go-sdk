@@ -18,13 +18,6 @@ import (
 
 const MaxHeading = 6
 
-type MapNote struct {
-	ChapterId string
-	Position  int32
-	Order     int32
-	Type      string
-}
-
 func processFootnoteAndRef(str string, footnotes []*biblev1.Footnote, fnLabel func(order int32, chapterId string) string, refLabel func(order int32, chapterId string) string) string {
 	// NOTE: Sort the footnotes and refs in descending order so when we add
 	// footnote content, the position of the next footnote will not be affected
@@ -240,8 +233,9 @@ func ProcessVerseHtml(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, he
 		// NOTE: Clean up p element wrapped because it will create a new line
 		newContent = processFootnoteAndRef(regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(newContent), ""), verseFootnotes, fnHtmlLabel, refHtmlLabel)
 
-		// NOTE: Add verse number label only to the first verse
-		if verse.SubVerseIndex == 0 {
+		// NOTE: Add verse number label only to the first verse or the first
+		// verse in the paragraph
+		if verse.SubVerseIndex == 0 || verse.ParagraphIndex == 0 {
 			newContent = fmt.Sprintf("<sup><b>%s</b></sup>", verse.Label) + " " + newContent
 		}
 
