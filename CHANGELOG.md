@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.10](https://github.com/v-bible/go-sdk/compare/v1.0.9...v1.0.10) (2025-08-05)
+
+
+### Bug Fixes
+
+* **utils:** add tests ([21bf584](https://github.com/v-bible/go-sdk/commit/21bf58466762c98727a68488721cd712a9aa8293))
+* **utils:** update new db structure ([632891b](https://github.com/v-bible/go-sdk/commit/632891b22bb45fc69163c541caa0a4a21befbb18))
+* **utils:** update new db structure ([4e9e170](https://github.com/v-bible/go-sdk/commit/4e9e17001bce8de7bbeffa0446913a11759d131b))
+
 ## [1.0.9](https://github.com/v-bible/go-sdk/compare/v1.0.8...v1.0.9) (2025-06-13)
 
 
