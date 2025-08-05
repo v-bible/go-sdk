@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.11](https://github.com/v-bible/go-sdk/compare/v1.0.10...v1.0.11) (2025-08-05)
+
+
+### Bug Fixes
+
+* **utils:** update process verse ([d3b6570](https://github.com/v-bible/go-sdk/commit/d3b6570517578e17e5a7d0fda9fc7be164bcf27a))
+* **utils:** update process verse ([821e047](https://github.com/v-bible/go-sdk/commit/821e047d834ca21272331b1e946ec58e5b8491f0))
+
 ## [1.0.10](https://github.com/v-bible/go-sdk/compare/v1.0.9...v1.0.10) (2025-08-05)
 
 
