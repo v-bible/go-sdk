@@ -103,11 +103,13 @@ func ProcessVerseMd(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, head
 			newContent = "\n> " + newContent + "\n>"
 		}
 
+		slices.Reverse(psalms)
+
 		// NOTE: Add the Psalm title to the first verse
 		if verse.SubVerseIndex == 0 && verse.ParagraphNumber == 0 {
 			for _, psalm := range psalms {
 				if psalm.ChapterId == verse.ChapterId {
-					newContent = fmt.Sprintf("*%s*", psalm.Title) + "\n" + newContent
+					newContent = fmt.Sprintf("*%s*", psalm.Text) + "\n" + newContent
 				}
 			}
 		}
@@ -243,11 +245,13 @@ func ProcessVerseHtml(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, he
 			newContent = "\n<blockquote>" + newContent + "</blockquote>\n"
 		}
 
+		slices.Reverse(psalms)
+
 		// NOTE: Add the Psalm title to the first verse
 		if verse.SubVerseIndex == 0 && verse.ParagraphNumber == 0 {
 			for _, psalm := range psalms {
 				if psalm.ChapterId == verse.ChapterId {
-					newContent = fmt.Sprintf("<i>%s</i>", regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(psalm.Title), "")) + "\n" + newContent
+					newContent = fmt.Sprintf("<i>%s</i>", regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(psalm.Text), "")) + "\n" + newContent
 				}
 			}
 		}
