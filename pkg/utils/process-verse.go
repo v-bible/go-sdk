@@ -18,6 +18,10 @@ import (
 
 const MaxHeading = 6
 
+const WojOpening = "<b>"
+
+const WojClosing = "</b>"
+
 func processFootnoteAndRef(str string, footnotes []*biblev1.Footnote, fnLabel func(order int32, chapterId string) string, refLabel func(order int32, chapterId string) string) string {
 	// NOTE: Sort the footnotes and refs in descending order so when we add
 	// footnote content, the position of the next footnote will not be affected
@@ -60,7 +64,7 @@ var refHtmlLabel = func(order int32, chapterId string) string {
 	return fmt.Sprintf(`<sup><a href="#fn-%d@-%s" id="fnref-%d@-%s">%d@</a></sup>`, order, chapterId, order, chapterId, order)
 }
 
-func ProcessVerseMd(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, headings []*biblev1.Heading, psalms []*biblev1.PsalmMetadata) (string, error) {
+func ProcessVerseMd(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, headings []*biblev1.Heading, psalms []*biblev1.PsalmMetadata, woj []*biblev1.WordsOfJesus) (string, error) {
 	newVerses := make([]*biblev1.Verse, len(verses))
 
 	for i := range verses {
@@ -80,18 +84,69 @@ func ProcessVerseMd(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, head
 	}
 
 	for _, verse := range newVerses {
-		// NOTE: Order is 1st Heading -> Ref -> 2nd Heading -> Content ->
-		// Footnote
+		// NOTE: Order is Woj -> Footnote labels -> Verse number -> Poetry ->
+		// Psalms -> Headings -> Heading Footnotes -> Chapter separator ->
+		// Footnote text
 		verseFootnotes := lo.Filter(footnotes, func(fn *biblev1.Footnote, index int) bool {
 			return fn.VerseId != nil && *fn.VerseId == verse.Id
 		})
 		verseHeadings := lo.Filter(headings, func(h *biblev1.Heading, index int) bool {
 			return h.VerseId == verse.Id
 		})
+		verseWoj := lo.Filter(woj, func(w *biblev1.WordsOfJesus, index int) bool {
+			return w.VerseId == verse.Id
+		})
+
+		// NOTE: Because words of jesus effect the footnote & ref position, so
+		// we have to update the position of footnotes and references, by adding
+		// wojOpening and wojClosing length if woj text start or text end
+		// smaller than the footnote or reference position
+		updateFnPosition := lo.Map(verseFootnotes, func(
+			fn *biblev1.Footnote, index int,
+		) *biblev1.Footnote {
+			offsetLength := 0
+
+			for _, wojItem := range verseWoj {
+				if wojItem.TextStart < fn.Position {
+					offsetLength += len(WojOpening)
+				}
+
+				if wojItem.TextEnd < fn.Position {
+					offsetLength += len(WojClosing)
+				}
+			}
+
+			fn.Position += int32(offsetLength)
+
+			return fn
+		})
 
 		newContent := strings.Clone(verse.Text)
 
-		newContent = processFootnoteAndRef(newContent, verseFootnotes, fnMdLabel, refMdLabel)
+		// NOTE: Wrap text with woj opening and closing if the verse has words
+		// of Jesus
+		if len(verseWoj) > 0 {
+			newString := utf8string.NewString(newContent)
+
+			slices.Reverse(verseWoj)
+
+			for _, wojItem := range verseWoj {
+				if wojItem.TextStart < 0 || wojItem.TextEnd < 0 {
+					continue
+				}
+
+				if wojItem.TextEnd < int32(newString.RuneCount()) {
+					newContent = newString.Slice(0, int(wojItem.TextStart)) +
+						WojOpening + wojItem.QuotationText + WojClosing +
+						newString.Slice(int(wojItem.TextEnd), newString.RuneCount())
+				} else {
+					newContent = newString.Slice(0, int(wojItem.TextStart)) +
+						WojOpening + wojItem.QuotationText + WojClosing
+				}
+			}
+		}
+
+		newContent = processFootnoteAndRef(newContent, updateFnPosition, fnMdLabel, refMdLabel)
 
 		// NOTE: Add verse number label only to the first verse or the first
 		// verse in the paragraph
@@ -175,9 +230,11 @@ func ProcessVerseMd(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, head
 
 	mdString += strings.Join(uniqueFnLines, "\n\n")
 
-	// NOTE: Clean up the blockquote redundant characters
-	mdString = regexp.MustCompile(`>\n+>`).ReplaceAllString(mdString, ">\n>")
-	mdString = strings.ReplaceAll(mdString, ">\n\n", "\n")
+	// NOTE: Clean up the blockquote redundant characters. Note to cleanup the
+	// blockquote characters, we need to replace the `>` characters at the
+	// beginning of the line
+	mdString = regexp.MustCompile(`(?m)^>\n+>`).ReplaceAllString(mdString, ">\n>")
+	mdString = regexp.MustCompile(`(?m)^>\n\n`).ReplaceAllString(mdString, ">\n>")
 	// NOTE: Clean up the redundant newlines
 	mdString = regexp.MustCompile(`\n{3,}`).ReplaceAllString(mdString, "\n\n")
 	mdString = strings.TrimSpace(mdString)
@@ -201,7 +258,7 @@ func mdToHTML(md string) string {
 	return res.String()
 }
 
-func ProcessVerseHtml(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, headings []*biblev1.Heading, psalms []*biblev1.PsalmMetadata) (string, error) {
+func ProcessVerseHtml(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, headings []*biblev1.Heading, psalms []*biblev1.PsalmMetadata, woj []*biblev1.WordsOfJesus) (string, error) {
 	newVerses := make([]*biblev1.Verse, len(verses))
 
 	for i := range verses {
@@ -221,19 +278,72 @@ func ProcessVerseHtml(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, he
 	}
 
 	for _, verse := range newVerses {
-		// NOTE: Order is 1st Heading -> Ref -> 2nd Heading -> Content ->
-		// Footnote
+		// NOTE: Order is Woj -> Footnote labels -> Verse number -> Poetry ->
+		// Psalms -> Headings -> Heading Footnotes -> Chapter separator ->
+		// Footnote text
 		verseFootnotes := lo.Filter(footnotes, func(fn *biblev1.Footnote, index int) bool {
 			return fn.VerseId != nil && *fn.VerseId == verse.Id
 		})
 		verseHeadings := lo.Filter(headings, func(h *biblev1.Heading, index int) bool {
 			return h.VerseId == verse.Id
 		})
+		verseWoj := lo.Filter(woj, func(w *biblev1.WordsOfJesus, index int) bool {
+			return w.VerseId == verse.Id
+		})
+
+		// NOTE: Because words of jesus effect the footnote & ref position, so
+		// we have to update the position of footnotes and references, by adding
+		// wojOpening and wojClosing length if woj text start or text end
+		// smaller than the footnote or reference position
+		updateFnPosition := lo.Map(verseFootnotes, func(
+			fn *biblev1.Footnote, index int,
+		) *biblev1.Footnote {
+			offsetLength := 0
+
+			for _, wojItem := range verseWoj {
+				if wojItem.TextStart < fn.Position {
+					offsetLength += len(WojOpening)
+				}
+
+				if wojItem.TextEnd < fn.Position {
+					offsetLength += len(WojClosing)
+				}
+			}
+
+			if offsetLength > 0 {
+				fn.Position += int32(offsetLength)
+			}
+
+			return fn
+		})
 
 		newContent := strings.Clone(verse.Text)
 
+		slices.Reverse(verseWoj)
+
+		// NOTE: Wrap text with woj opening and closing if the verse has words
+		// of Jesus
+		if len(verseWoj) > 0 {
+			newString := utf8string.NewString(newContent)
+
+			for _, wojItem := range verseWoj {
+				if wojItem.TextStart < 0 || wojItem.TextEnd < 0 {
+					continue
+				}
+
+				if wojItem.TextEnd < int32(newString.RuneCount()) {
+					newContent = newString.Slice(0, int(wojItem.TextStart)) +
+						WojOpening + wojItem.QuotationText + WojClosing +
+						newString.Slice(int(wojItem.TextEnd), newString.RuneCount())
+				} else {
+					newContent = newString.Slice(0, int(wojItem.TextStart)) +
+						WojOpening + wojItem.QuotationText + WojClosing
+				}
+			}
+		}
+
 		// NOTE: Clean up p element wrapped because it will create a new line
-		newContent = processFootnoteAndRef(regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(newContent), ""), verseFootnotes, fnHtmlLabel, refHtmlLabel)
+		newContent = processFootnoteAndRef(regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(newContent), ""), updateFnPosition, fnHtmlLabel, refHtmlLabel)
 
 		// NOTE: Add verse number label only to the first verse or the first
 		// verse in the paragraph
