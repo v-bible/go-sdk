@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.13](https://github.com/v-bible/go-sdk/compare/v1.0.12...v1.0.13) (2025-08-16)
+
+
+### Bug Fixes
+
+* support woj ([d3c1d13](https://github.com/v-bible/go-sdk/commit/d3c1d13d7d898a56b5732c20aab8356c30f6b6c9))
+* support woj ([b1a907d](https://github.com/v-bible/go-sdk/commit/b1a907d897f812ed14788ad505ef3043dc65506b))
+
 ## [1.0.12](https://github.com/v-bible/go-sdk/compare/v1.0.11...v1.0.12) (2025-08-13)
 
 
