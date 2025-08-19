@@ -111,7 +111,9 @@ func ProcessVerseMd(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, head
 					offsetLength += len(WojOpening)
 				}
 
-				if wojItem.TextEnd < fn.Position {
+				// NOTE: We want footnotes or refs behind the closing tag of
+				// words of Jesus
+				if wojItem.TextEnd <= fn.Position {
 					offsetLength += len(WojClosing)
 				}
 			}
@@ -126,11 +128,12 @@ func ProcessVerseMd(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, head
 		// NOTE: Wrap text with woj opening and closing if the verse has words
 		// of Jesus
 		if len(verseWoj) > 0 {
-			newString := utf8string.NewString(newContent)
 
 			slices.Reverse(verseWoj)
 
 			for _, wojItem := range verseWoj {
+				newString := utf8string.NewString(newContent)
+
 				if wojItem.TextStart < 0 || wojItem.TextEnd < 0 {
 					continue
 				}
@@ -305,7 +308,9 @@ func ProcessVerseHtml(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, he
 					offsetLength += len(WojOpening)
 				}
 
-				if wojItem.TextEnd < fn.Position {
+				// NOTE: We want footnotes or refs behind the closing tag of
+				// words of Jesus
+				if wojItem.TextEnd <= fn.Position {
 					offsetLength += len(WojClosing)
 				}
 			}
@@ -324,9 +329,9 @@ func ProcessVerseHtml(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, he
 		// NOTE: Wrap text with woj opening and closing if the verse has words
 		// of Jesus
 		if len(verseWoj) > 0 {
-			newString := utf8string.NewString(newContent)
-
 			for _, wojItem := range verseWoj {
+				newString := utf8string.NewString(newContent)
+
 				if wojItem.TextStart < 0 || wojItem.TextEnd < 0 {
 					continue
 				}
