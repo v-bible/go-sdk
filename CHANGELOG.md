@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.14](https://github.com/v-bible/go-sdk/compare/v1.0.13...v1.0.14) (2025-08-19)
+
+
+### Bug Fixes
+
+* **utils:** incorrect woj handling ([7a7fa3d](https://github.com/v-bible/go-sdk/commit/7a7fa3d7e7415cd6f53bd4fdb99908c0de069a00))
+* **utils:** incorrect woj handling ([390ee26](https://github.com/v-bible/go-sdk/commit/390ee260ce374defd1f168d2e199854af287ef59))
+
 ## [1.0.13](https://github.com/v-bible/go-sdk/compare/v1.0.12...v1.0.13) (2025-08-16)
 
 
