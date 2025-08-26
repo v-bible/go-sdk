@@ -18,53 +18,61 @@ import (
 
 const MaxHeading = 6
 
-const WojOpening = "<b>"
+func InjectMarkLabel(str string, marks []*biblev1.Mark, labelMap map[biblev1.MarkKind]func(mark *biblev1.Mark, chapterId string) string) string {
+	resolvedMarks := ResolveMarks(marks, nil)
 
-const WojClosing = "</b>"
+	slices.Reverse(resolvedMarks)
 
-func processFootnoteAndRef(str string, footnotes []*biblev1.Footnote, fnLabel func(order int32, chapterId string) string, refLabel func(order int32, chapterId string) string) string {
-	// NOTE: Sort the footnotes and refs in descending order so when we add
-	// footnote content, the position of the next footnote will not be affected
-	slices.SortFunc(footnotes, func(a, b *biblev1.Footnote) int {
-		return cmp.Compare(b.Position, a.Position)
-	})
+	for _, mark := range resolvedMarks {
+		if labelFunc, ok := labelMap[mark.Kind]; ok {
+			newString := utf8string.NewString(str)
 
-	for _, note := range footnotes {
-		newString := utf8string.NewString(str)
-		newRefLabel := fnLabel(note.SortOrder+1, note.ChapterId)
+			newMarkLabel := labelFunc(mark, mark.ChapterId)
 
-		if note.Type == "reference" {
-			// NOTE: Must match with corresponding footnote label
-			newRefLabel = refLabel(note.SortOrder+1, note.ChapterId)
-		}
-
-		if int(note.Position) > newString.RuneCount() {
-			str = newString.String() + newRefLabel
-		} else {
-			str = newString.Slice(0, int(note.Position)) + newRefLabel + newString.Slice(int(note.Position), newString.RuneCount())
+			if int(mark.StartOffset) > newString.RuneCount() {
+				str = newString.String() + newMarkLabel
+			} else {
+				str = newString.Slice(0, int(mark.StartOffset)) + newMarkLabel + newString.Slice(int(mark.EndOffset), newString.RuneCount())
+			}
 		}
 	}
 
 	return str
 }
 
-var fnMdLabel = func(order int32, chapterId string) string {
-	return fmt.Sprintf("[^%d-%s]", order, chapterId)
+var unspecifiedMdLabel = func(mark *biblev1.Mark, chapterId string) string {
+	return ""
 }
 
-var refMdLabel = func(order int32, chapterId string) string {
-	return fmt.Sprintf("[^%d@-%s]", order, chapterId)
+var fnMdLabel = func(mark *biblev1.Mark, chapterId string) string {
+	return fmt.Sprintf("[^%d-%s]", mark.SortOrder+1, chapterId)
 }
 
-var fnHtmlLabel = func(order int32, chapterId string) string {
-	return fmt.Sprintf(`<sup><a href="#fn-%d-%s" id="fnref-%d-%s">%d</a></sup>`, order, chapterId, order, chapterId, order)
+var refMdLabel = func(mark *biblev1.Mark, chapterId string) string {
+	return fmt.Sprintf("[^%d@-%s]", mark.SortOrder+1, chapterId)
 }
 
-var refHtmlLabel = func(order int32, chapterId string) string {
-	return fmt.Sprintf(`<sup><a href="#fn-%d@-%s" id="fnref-%d@-%s">%d@</a></sup>`, order, chapterId, order, chapterId, order)
+var wojMdLabel = func(mark *biblev1.Mark, chapterId string) string {
+	return fmt.Sprintf("<b>%s</b>", mark.Content)
 }
 
-func ProcessVerseMd(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, headings []*biblev1.Heading, psalms []*biblev1.PsalmMetadata, woj []*biblev1.WordsOfJesus) (string, error) {
+var unspecifiedHtmlLabel = func(mark *biblev1.Mark, chapterId string) string {
+	return ""
+}
+
+var fnHtmlLabel = func(mark *biblev1.Mark, chapterId string) string {
+	return fmt.Sprintf(`<sup><a href="#fn-%d-%s" id="fnref-%d-%s">%d</a></sup>`, mark.SortOrder, chapterId, mark.SortOrder+1, chapterId, mark.SortOrder)
+}
+
+var refHtmlLabel = func(mark *biblev1.Mark, chapterId string) string {
+	return fmt.Sprintf(`<sup><a href="#fn-%d@-%s" id="fnref-%d@-%s">%d@</a></sup>`, mark.SortOrder, chapterId, mark.SortOrder+1, chapterId, mark.SortOrder)
+}
+
+var wojHtmlLabel = func(mark *biblev1.Mark, chapterId string) string {
+	return fmt.Sprintf("<b>%s</b>", mark.Content)
+}
+
+func ProcessVerseMd(verses []*biblev1.Verse, marks []*biblev1.Mark, headings []*biblev1.Heading, psalms []*biblev1.PsalmMetadata) (string, error) {
 	newVerses := make([]*biblev1.Verse, len(verses))
 
 	for i := range verses {
@@ -87,69 +95,33 @@ func ProcessVerseMd(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, head
 		// NOTE: Order is Woj -> Footnote labels -> Verse number -> Poetry ->
 		// Psalms -> Headings -> Heading Footnotes -> Chapter separator ->
 		// Footnote text
-		verseFootnotes := lo.Filter(footnotes, func(fn *biblev1.Footnote, index int) bool {
-			return fn.VerseId != nil && *fn.VerseId == verse.Id
+		verseFootnotes := lo.Filter(marks, func(m *biblev1.Mark, index int) bool {
+			return m.Kind == biblev1.MarkKind_MARK_KIND_FOOTNOTE && m.TargetType == biblev1.MarkTargetType_MARK_TARGET_TYPE_VERSE && m.TargetId == verse.Id
+		})
+		verseReferences := lo.Filter(marks, func(m *biblev1.Mark, index int) bool {
+			return m.Kind == biblev1.MarkKind_MARK_KIND_REFERENCE && m.TargetType == biblev1.MarkTargetType_MARK_TARGET_TYPE_VERSE && m.TargetId == verse.Id
 		})
 		verseHeadings := lo.Filter(headings, func(h *biblev1.Heading, index int) bool {
 			return h.VerseId == verse.Id
 		})
-		verseWoj := lo.Filter(woj, func(w *biblev1.WordsOfJesus, index int) bool {
-			return w.VerseId == verse.Id
-		})
-
-		// NOTE: Because words of jesus effect the footnote & ref position, so
-		// we have to update the position of footnotes and references, by adding
-		// wojOpening and wojClosing length if woj text start or text end
-		// smaller than the footnote or reference position
-		updateFnPosition := lo.Map(verseFootnotes, func(
-			fn *biblev1.Footnote, index int,
-		) *biblev1.Footnote {
-			offsetLength := 0
-
-			for _, wojItem := range verseWoj {
-				if wojItem.TextStart < fn.Position {
-					offsetLength += len(WojOpening)
-				}
-
-				// NOTE: We want footnotes or refs behind the closing tag of
-				// words of Jesus
-				if wojItem.TextEnd <= fn.Position {
-					offsetLength += len(WojClosing)
-				}
-			}
-
-			fn.Position += int32(offsetLength)
-
-			return fn
+		verseWoj := lo.Filter(marks, func(m *biblev1.Mark, index int) bool {
+			return m.Kind == biblev1.MarkKind_MARK_KIND_WORDS_OF_JESUS && m.TargetType == biblev1.MarkTargetType_MARK_TARGET_TYPE_VERSE && m.TargetId == verse.Id
 		})
 
 		newContent := strings.Clone(verse.Text)
 
-		// NOTE: Wrap text with woj opening and closing if the verse has words
-		// of Jesus
-		if len(verseWoj) > 0 {
+		verseMarks := append([]*biblev1.Mark{}, verseFootnotes...)
+		verseMarks = append(verseMarks, verseReferences...)
+		verseMarks = append(verseMarks, verseWoj...)
 
-			slices.Reverse(verseWoj)
-
-			for _, wojItem := range verseWoj {
-				newString := utf8string.NewString(newContent)
-
-				if wojItem.TextStart < 0 || wojItem.TextEnd < 0 {
-					continue
-				}
-
-				if wojItem.TextEnd < int32(newString.RuneCount()) {
-					newContent = newString.Slice(0, int(wojItem.TextStart)) +
-						WojOpening + wojItem.QuotationText + WojClosing +
-						newString.Slice(int(wojItem.TextEnd), newString.RuneCount())
-				} else {
-					newContent = newString.Slice(0, int(wojItem.TextStart)) +
-						WojOpening + wojItem.QuotationText + WojClosing
-				}
-			}
+		labelMap := map[biblev1.MarkKind]func(mark *biblev1.Mark, chapterId string) string{
+			biblev1.MarkKind_MARK_KIND_UNSPECIFIED:    unspecifiedMdLabel,
+			biblev1.MarkKind_MARK_KIND_FOOTNOTE:       fnMdLabel,
+			biblev1.MarkKind_MARK_KIND_REFERENCE:      refMdLabel,
+			biblev1.MarkKind_MARK_KIND_WORDS_OF_JESUS: wojMdLabel,
 		}
 
-		newContent = processFootnoteAndRef(newContent, updateFnPosition, fnMdLabel, refMdLabel)
+		newContent = InjectMarkLabel(newContent, verseMarks, labelMap)
 
 		// NOTE: Add verse number label only to the first verse or the first
 		// verse in the paragraph
@@ -175,11 +147,17 @@ func ProcessVerseMd(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, head
 		for i := range verseHeadings {
 			revIdx := len(verseHeadings) - 1 - i
 
-			headingFootnotes := lo.Filter(footnotes, func(fn *biblev1.Footnote, index int) bool {
-				return fn.HeadingId != nil && *fn.HeadingId == verseHeadings[revIdx].Id
+			headingFootnotes := lo.Filter(marks, func(fn *biblev1.Mark, index int) bool {
+				return fn.Kind == biblev1.MarkKind_MARK_KIND_FOOTNOTE && fn.TargetType == biblev1.MarkTargetType_MARK_TARGET_TYPE_HEADING && fn.TargetId == verseHeadings[revIdx].Id
+			})
+			headingReferences := lo.Filter(marks, func(m *biblev1.Mark, index int) bool {
+				return m.Kind == biblev1.MarkKind_MARK_KIND_REFERENCE && m.TargetType == biblev1.MarkTargetType_MARK_TARGET_TYPE_HEADING && m.TargetId == verseHeadings[revIdx].Id
 			})
 
-			newHeadingContent := processFootnoteAndRef(verseHeadings[revIdx].Text, headingFootnotes, fnMdLabel, refMdLabel)
+			headingMarks := append([]*biblev1.Mark{}, headingFootnotes...)
+			headingMarks = append(headingMarks, headingReferences...)
+
+			newHeadingContent := InjectMarkLabel(verseHeadings[revIdx].Text, headingMarks, labelMap)
 
 			// NOTE: Heading level starts from 1
 			newContent = fmt.Sprintf("\n%s ", strings.Repeat("#", int(verseHeadings[revIdx].Level)%MaxHeading)) + newHeadingContent + "\n" + newContent
@@ -214,15 +192,15 @@ func ProcessVerseMd(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, head
 
 	fnSection := ""
 
-	slices.SortFunc(footnotes, func(a, b *biblev1.Footnote) int {
-		return cmp.Or(cmp.Compare(a.Type, b.Type), cmp.Compare(a.SortOrder, b.SortOrder))
+	slices.SortFunc(marks, func(a, b *biblev1.Mark) int {
+		return cmp.Or(cmp.Compare(a.Kind, b.Kind), cmp.Compare(a.SortOrder, b.SortOrder))
 	})
 
-	for _, footnote := range footnotes {
-		if footnote.Type == "footnote" {
-			fnSection += fmt.Sprintf("[^%d-%s]: %s", footnote.SortOrder+1, footnote.ChapterId, footnote.Text) + "\n\n"
-		} else {
-			fnSection += fmt.Sprintf("[^%d@-%s]: %s", footnote.SortOrder+1, footnote.ChapterId, footnote.Text) + "\n\n"
+	for _, footnote := range marks {
+		if footnote.Kind == biblev1.MarkKind_MARK_KIND_FOOTNOTE {
+			fnSection += fmt.Sprintf("[^%d-%s]: %s", footnote.SortOrder+1, footnote.ChapterId, footnote.Content) + "\n\n"
+		} else if footnote.Kind == biblev1.MarkKind_MARK_KIND_REFERENCE {
+			fnSection += fmt.Sprintf("[^%d@-%s]: %s", footnote.SortOrder+1, footnote.ChapterId, footnote.Content) + "\n\n"
 		}
 	}
 
@@ -261,7 +239,7 @@ func mdToHTML(md string) string {
 	return res.String()
 }
 
-func ProcessVerseHtml(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, headings []*biblev1.Heading, psalms []*biblev1.PsalmMetadata, woj []*biblev1.WordsOfJesus) (string, error) {
+func ProcessVerseHtml(verses []*biblev1.Verse, marks []*biblev1.Mark, headings []*biblev1.Heading, psalms []*biblev1.PsalmMetadata) (string, error) {
 	newVerses := make([]*biblev1.Verse, len(verses))
 
 	for i := range verses {
@@ -284,71 +262,34 @@ func ProcessVerseHtml(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, he
 		// NOTE: Order is Woj -> Footnote labels -> Verse number -> Poetry ->
 		// Psalms -> Headings -> Heading Footnotes -> Chapter separator ->
 		// Footnote text
-		verseFootnotes := lo.Filter(footnotes, func(fn *biblev1.Footnote, index int) bool {
-			return fn.VerseId != nil && *fn.VerseId == verse.Id
+		verseFootnotes := lo.Filter(marks, func(fn *biblev1.Mark, index int) bool {
+			return fn.Kind == biblev1.MarkKind_MARK_KIND_FOOTNOTE && fn.TargetType == biblev1.MarkTargetType_MARK_TARGET_TYPE_VERSE && fn.TargetId == verse.Id
+		})
+		verseReferences := lo.Filter(marks, func(m *biblev1.Mark, index int) bool {
+			return m.Kind == biblev1.MarkKind_MARK_KIND_REFERENCE && m.TargetType == biblev1.MarkTargetType_MARK_TARGET_TYPE_VERSE && m.TargetId == verse.Id
 		})
 		verseHeadings := lo.Filter(headings, func(h *biblev1.Heading, index int) bool {
 			return h.VerseId == verse.Id
 		})
-		verseWoj := lo.Filter(woj, func(w *biblev1.WordsOfJesus, index int) bool {
-			return w.VerseId == verse.Id
-		})
-
-		// NOTE: Because words of jesus effect the footnote & ref position, so
-		// we have to update the position of footnotes and references, by adding
-		// wojOpening and wojClosing length if woj text start or text end
-		// smaller than the footnote or reference position
-		updateFnPosition := lo.Map(verseFootnotes, func(
-			fn *biblev1.Footnote, index int,
-		) *biblev1.Footnote {
-			offsetLength := 0
-
-			for _, wojItem := range verseWoj {
-				if wojItem.TextStart < fn.Position {
-					offsetLength += len(WojOpening)
-				}
-
-				// NOTE: We want footnotes or refs behind the closing tag of
-				// words of Jesus
-				if wojItem.TextEnd <= fn.Position {
-					offsetLength += len(WojClosing)
-				}
-			}
-
-			if offsetLength > 0 {
-				fn.Position += int32(offsetLength)
-			}
-
-			return fn
+		verseWoj := lo.Filter(marks, func(w *biblev1.Mark, index int) bool {
+			return w.Kind == biblev1.MarkKind_MARK_KIND_WORDS_OF_JESUS && w.TargetType == biblev1.MarkTargetType_MARK_TARGET_TYPE_VERSE && w.TargetId == verse.Id
 		})
 
 		newContent := strings.Clone(verse.Text)
 
-		slices.Reverse(verseWoj)
+		verseMarks := append([]*biblev1.Mark{}, verseFootnotes...)
+		verseMarks = append(verseMarks, verseReferences...)
+		verseMarks = append(verseMarks, verseWoj...)
 
-		// NOTE: Wrap text with woj opening and closing if the verse has words
-		// of Jesus
-		if len(verseWoj) > 0 {
-			for _, wojItem := range verseWoj {
-				newString := utf8string.NewString(newContent)
-
-				if wojItem.TextStart < 0 || wojItem.TextEnd < 0 {
-					continue
-				}
-
-				if wojItem.TextEnd < int32(newString.RuneCount()) {
-					newContent = newString.Slice(0, int(wojItem.TextStart)) +
-						WojOpening + wojItem.QuotationText + WojClosing +
-						newString.Slice(int(wojItem.TextEnd), newString.RuneCount())
-				} else {
-					newContent = newString.Slice(0, int(wojItem.TextStart)) +
-						WojOpening + wojItem.QuotationText + WojClosing
-				}
-			}
+		labelMap := map[biblev1.MarkKind]func(mark *biblev1.Mark, chapterId string) string{
+			biblev1.MarkKind_MARK_KIND_UNSPECIFIED:    unspecifiedHtmlLabel,
+			biblev1.MarkKind_MARK_KIND_FOOTNOTE:       fnHtmlLabel,
+			biblev1.MarkKind_MARK_KIND_REFERENCE:      refHtmlLabel,
+			biblev1.MarkKind_MARK_KIND_WORDS_OF_JESUS: wojHtmlLabel,
 		}
 
 		// NOTE: Clean up p element wrapped because it will create a new line
-		newContent = processFootnoteAndRef(regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(newContent), ""), updateFnPosition, fnHtmlLabel, refHtmlLabel)
+		newContent = InjectMarkLabel(regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(newContent), ""), verseMarks, labelMap)
 
 		// NOTE: Add verse number label only to the first verse or the first
 		// verse in the paragraph
@@ -374,11 +315,17 @@ func ProcessVerseHtml(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, he
 		for i := range verseHeadings {
 			revIdx := len(verseHeadings) - 1 - i
 
-			headingFootnotes := lo.Filter(footnotes, func(fn *biblev1.Footnote, index int) bool {
-				return fn.HeadingId != nil && *fn.HeadingId == verseHeadings[revIdx].Id
+			headingFootnotes := lo.Filter(marks, func(fn *biblev1.Mark, index int) bool {
+				return fn.Kind == biblev1.MarkKind_MARK_KIND_FOOTNOTE && fn.TargetType == biblev1.MarkTargetType_MARK_TARGET_TYPE_HEADING && fn.TargetId == verseHeadings[revIdx].Id
+			})
+			headingReferences := lo.Filter(marks, func(m *biblev1.Mark, index int) bool {
+				return m.Kind == biblev1.MarkKind_MARK_KIND_REFERENCE && m.TargetType == biblev1.MarkTargetType_MARK_TARGET_TYPE_HEADING && m.TargetId == verseHeadings[revIdx].Id
 			})
 
-			newHeadingContent := processFootnoteAndRef(regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(verseHeadings[revIdx].Text), ""), headingFootnotes, fnHtmlLabel, refHtmlLabel)
+			headingMarks := append([]*biblev1.Mark{}, headingFootnotes...)
+			headingMarks = append(headingMarks, headingReferences...)
+
+			newHeadingContent := InjectMarkLabel(regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(verseHeadings[revIdx].Text), ""), headingMarks, labelMap)
 
 			// NOTE: Heading level starts from 1
 			newContent = fmt.Sprintf("\n<h%d>", verseHeadings[revIdx].Level%MaxHeading) + newHeadingContent + fmt.Sprintf("</h%d>\n", verseHeadings[revIdx].Level%MaxHeading) + newContent
@@ -412,15 +359,15 @@ func ProcessVerseHtml(verses []*biblev1.Verse, footnotes []*biblev1.Footnote, he
 
 	fnSection := ""
 
-	slices.SortFunc(footnotes, func(a, b *biblev1.Footnote) int {
-		return cmp.Or(cmp.Compare(a.Type, b.Type), cmp.Compare(a.SortOrder, b.SortOrder))
+	slices.SortFunc(marks, func(a, b *biblev1.Mark) int {
+		return cmp.Or(cmp.Compare(a.Kind, b.Kind), cmp.Compare(a.SortOrder, b.SortOrder))
 	})
 
-	for _, footnote := range footnotes {
-		if footnote.Type == "footnote" {
-			fnSection += fmt.Sprintf(`<li id="fn-%d-%s"><p>%s [<a href="#fnref-%d-%s">%d</a>]</p></li>`, footnote.SortOrder+1, footnote.ChapterId, regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(footnote.Text), ""), footnote.SortOrder+1, footnote.ChapterId, footnote.SortOrder+1) + "\n\n"
-		} else {
-			fnSection += fmt.Sprintf(`<li id="fn-%d@-%s"><p>%s [<a href="#fnref-%d@-%s">%d@</a>]</p></li>`, footnote.SortOrder+1, footnote.ChapterId, regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(footnote.Text), ""), footnote.SortOrder+1, footnote.ChapterId, footnote.SortOrder+1) + "\n\n"
+	for _, footnote := range marks {
+		if footnote.Kind == biblev1.MarkKind_MARK_KIND_FOOTNOTE {
+			fnSection += fmt.Sprintf(`<li id="fn-%d-%s"><p>%s [<a href="#fnref-%d-%s">%d</a>]</p></li>`, footnote.SortOrder+1, footnote.ChapterId, regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(footnote.Content), ""), footnote.SortOrder+1, footnote.ChapterId, footnote.SortOrder+1) + "\n\n"
+		} else if footnote.Kind == biblev1.MarkKind_MARK_KIND_REFERENCE {
+			fnSection += fmt.Sprintf(`<li id="fn-%d@-%s"><p>%s [<a href="#fnref-%d@-%s">%d@</a>]</p></li>`, footnote.SortOrder+1, footnote.ChapterId, regexp.MustCompile(`<p>|<\/p>\n?`).ReplaceAllString(mdToHTML(footnote.Content), ""), footnote.SortOrder+1, footnote.ChapterId, footnote.SortOrder+1) + "\n\n"
 		}
 	}
 
