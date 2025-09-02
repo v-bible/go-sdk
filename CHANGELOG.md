@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.15](https://github.com/v-bible/go-sdk/compare/v1.0.14...v1.0.15) (2025-09-02)
+
+
+### Bug Fixes
+
+* **utils:** migrate to new db ([d61e988](https://github.com/v-bible/go-sdk/commit/d61e988f03f50b6984ad784e8cefd4285c8866e6))
+* **utils:** migrate to new db ([a92cb6a](https://github.com/v-bible/go-sdk/commit/a92cb6a9f496b17d1efab45c2bc87a576f5d673a))
+
 ## [1.0.14](https://github.com/v-bible/go-sdk/compare/v1.0.13...v1.0.14) (2025-08-19)
 
 
