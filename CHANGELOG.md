@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.16](https://github.com/v-bible/go-sdk/compare/v1.0.15...v1.0.16) (2025-09-03)
+
+
+### Bug Fixes
+
+* **utils:** incorrect mark processing ([4289c05](https://github.com/v-bible/go-sdk/commit/4289c05b1831b8933efb3853f2bce5becc19803c))
+* **utils:** incorrect mark processing ([a23537c](https://github.com/v-bible/go-sdk/commit/a23537c06de5e4972a6de9cd4f0f823d67bb0abc))
+
 ## [1.0.15](https://github.com/v-bible/go-sdk/compare/v1.0.14...v1.0.15) (2025-09-02)
 
 
