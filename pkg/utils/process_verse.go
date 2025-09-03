@@ -29,11 +29,18 @@ func InjectMarkLabel(str string, marks []*biblev1.Mark, labelMap map[biblev1.Mar
 
 			newMarkLabel := labelFunc(mark, mark.ChapterId)
 
-			if int(mark.StartOffset) > newString.RuneCount() {
-				str = newString.String() + newMarkLabel
-			} else {
-				str = newString.Slice(0, int(mark.StartOffset)) + newMarkLabel + newString.Slice(int(mark.EndOffset), newString.RuneCount())
+			startOffset := int(mark.StartOffset)
+			endOffset := int(mark.EndOffset)
+
+			if startOffset > newString.RuneCount() {
+				startOffset = newString.RuneCount()
 			}
+
+			if endOffset > newString.RuneCount() {
+				endOffset = newString.RuneCount()
+			}
+
+			str = newString.Slice(0, startOffset) + newMarkLabel + newString.Slice(endOffset, newString.RuneCount())
 		}
 	}
 
@@ -61,11 +68,11 @@ var unspecifiedHtmlLabel = func(mark *biblev1.Mark, chapterId string) string {
 }
 
 var fnHtmlLabel = func(mark *biblev1.Mark, chapterId string) string {
-	return fmt.Sprintf(`<sup><a href="#fn-%d-%s" id="fnref-%d-%s">%d</a></sup>`, mark.SortOrder, chapterId, mark.SortOrder+1, chapterId, mark.SortOrder)
+	return fmt.Sprintf(`<sup><a href="#fn-%d-%s" id="fnref-%d-%s">%d</a></sup>`, mark.SortOrder+1, chapterId, mark.SortOrder+1, chapterId, mark.SortOrder+1)
 }
 
 var refHtmlLabel = func(mark *biblev1.Mark, chapterId string) string {
-	return fmt.Sprintf(`<sup><a href="#fn-%d@-%s" id="fnref-%d@-%s">%d@</a></sup>`, mark.SortOrder, chapterId, mark.SortOrder+1, chapterId, mark.SortOrder)
+	return fmt.Sprintf(`<sup><a href="#fn-%d@-%s" id="fnref-%d@-%s">%d@</a></sup>`, mark.SortOrder+1, chapterId, mark.SortOrder+1, chapterId, mark.SortOrder+1)
 }
 
 var wojHtmlLabel = func(mark *biblev1.Mark, chapterId string) string {
